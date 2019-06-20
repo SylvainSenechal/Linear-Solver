@@ -13,14 +13,16 @@ class Model {
     this.vectorVars = undefined
     this.vectorB = undefined
     this.vectorBase = undefined
+
+    this.maxIteration = 100
   }
 
   addVar = variable => {
     this.vars.push({
-      id: variable.id || this.nbVars,
+      id: variable.id || this.nbVars, // voir utilite
       name: variable.name || undefined,
       coeff: variable.coeff || 0,
-      value: 0
+      value: 0 // voir utilite
     })
     this.nbVars++
   }
@@ -28,18 +30,6 @@ class Model {
 
   addConstraint = constraint => this.constraints.push(constraint)
   addConstraints = constraints => { } // TODO:
-
-  setObjective = objective => { // TODO:
-    if (objective === "maximize") {
-
-    }
-    else if (objective === "minimize") {
-      // on maximize - [vecteur vars]
-    }
-    else {
-      console.error("wrong objective")
-    }
-  }
 
   countNbVarEcart = () => {
     for (let i = 0; i < this.constraints.length; i++) {
@@ -50,16 +40,29 @@ class Model {
     }
   }
 
-  compile = optimizationType => { // Voir si on peut virer variables d'écart quand contrainte égale
+  compile = optimizationType => { // TODO:  Voir si on peut virer variables d'écart quand contrainte égale
     // TODO: rename les i, j dégeu
-    this.optimizationType = optimizationType
+    if ( optimizationType != "minimize" && optimizationType != "maximize") {
+      console.error(`Please pick between \'maximize\' and \'minimize\', not \'${optimizationType}\'`)
+      return
+    }
+    else {
+      this.optimizationType = optimizationType
+      if ( this.optimizationType === "minimize" ) {
+        for ( let i = 0; i < this.nbVars; i++ ) {
+          this.vars[i].coeff = -this.vars[i].coeff
+        }
+      }
+    }
     this.countNbVarEcart()
-    for (let i = 0; i < this.constraints.length; i++) {
+    for (let i = 0; i < this.constraints.length; i++) { // TODO: utiliser arr.map au lieu des for dégeu ?
+      let sign = (this.constraints[i].constraint === "inf" || this.constraints[i].constraint === "equal") ? 1 : - 1
       this.tableau[i] = new Float32Array(this.nbVars + this.nbVarEcart)
       for (let j = 0; j < this.nbVars; j++) {
-        this.tableau[i][j] = this.constraints[i].equation[j] // Ajout variables du problème
+        console.log(this.constraints[i].equation[j])
+        this.tableau[i][j] = sign * this.constraints[i].equation[j] // Ajout variables du problème
       }
-      this.tableau[i][i + this.nbVarEcart-1] = 1 // Ajout variables d'écart
+      this.tableau[i][i + this.nbVars] = 1 // Ajout variables d'écart
     }
     this.vectorVars = new Float32Array(this.nbVars + this.nbVarEcart)
     for (let i = 0; i < this.nbVars; i++) {
@@ -67,7 +70,8 @@ class Model {
     }
     this.vectorB = new Float32Array(this.constraints.length)
     for (let i = 0; i < this.constraints.length; i++) {
-      this.vectorB[i] = this.constraints[i].b
+      let sign = (this.constraints[i].constraint === "inf" || this.constraints[i].constraint === "equal") ? 1 : - 1
+      this.vectorB[i] = sign * this.constraints[i].b
     }
 
     this.vectorBase = new Array(this.constraints.length) // Creation de la solution pour une base réalisable
@@ -80,7 +84,13 @@ class Model {
 // TODO: tester un edge case avec une equation de type égalite
   optimize = () => {
     console.log(this)
-    while( this.vectorVars[this.argMax(this.vectorVars)] > 0 ) { // TODO: ajouter un max iteration dans le while
+    let nbIteration = 0
+    console.log(this.vectorB)
+    console.log(this.vectorVars)
+    console.table(this.tableau)
+    console.log(this.vectorBase)
+    while( this.vectorVars[this.argMax(this.vectorVars)] > 0 && nbIteration < this.maxIteration) { // TODO: ajouter un max iteration dans le while
+      nbIteration++
       let enteringVarIndex = this.argMax(this.vectorVars)
       let leavingVarIndex = this.leavingVar(enteringVarIndex)
 
@@ -126,7 +136,6 @@ class Model {
     console.log("Optimum Solution : ", solutionVector)
     let coefficients = new Float32Array(this.nbVars + this.nbVarEcart)
     for (let i = 0; i < this.nbVars; i++) coefficients[i] = this.vars[i].coeff
-    console.log(coefficients)
     let optimum = this.dot(solutionVector, coefficients)
     console.log("Optimum value of Objective function : ", optimum)
   }
@@ -193,11 +202,11 @@ class Model {
 let m = new Model()
 
 // exemple 1
-m.addVar({coeff: 1})
-m.addVar({coeff: 2})
-m.addConstraint({equation: [1, 3], constraint: "inf", b: 21})
-m.addConstraint({equation: [-1, 3], constraint: "inf", b: 18})
-m.addConstraint({equation: [1, -1], constraint: "inf", b: 5})
+// m.addVar({coeff: 1})
+// m.addVar({coeff: 2})
+// m.addConstraint({equation: [1, 3], constraint: "inf", b: 21})
+// m.addConstraint({equation: [-1, 3], constraint: "inf", b: 18})
+// m.addConstraint({equation: [1, -1], constraint: "inf", b: 5})
 
 // m.addConstraints({
 //   equations: [
@@ -211,6 +220,32 @@ m.addConstraint({equation: [1, -1], constraint: "inf", b: 5})
 
 
 // exemple 2
+// m.addVar({coeff: 1})
+// m.addVar({coeff: -3})
+// m.addConstraint({equation: [3, -2], constraint: "inf", b: 7})
+// m.addConstraint({equation: [-1, 4], constraint: "inf", b: 9})
+// m.addConstraint({equation: [-2, 3], constraint: "inf", b: 6})
+
+// Exemple 3 égalités
+// TODO: pivot === 0 => division by 0 proleme
+// m.addVar({coeff: 3})
+// m.addVar({coeff: 1})
+// m.addConstraint({equation: [2, 0], constraint: "inf", b: 20})
+
+// Exemple 4
+// m.addVar({coeff: 1})
+// m.addVar({coeff: 2})
+// m.addConstraint({equation: [1, 1], constraint: "inf", b: 12})
+// m.addConstraint({equation: [3, -1], constraint: "sup", b: 6})
+// m.addConstraint({equation: [-1, 4], constraint: "sup", b: 8})
+// m.addConstraint({equation: [0, 1], constraint: "inf", b: 6})
+
+// Exemple 5 non borné
+// m.addVar({coeff: 1})
+// m.addVar({coeff: 2})
+// m.addConstraint({equation: [3, -2], constraint: "sup", b: 6})
+// m.addConstraint({equation: [-1, 4], constraint: "sup", b: 8})
+
 
 
 /////////////////////////////////////////
