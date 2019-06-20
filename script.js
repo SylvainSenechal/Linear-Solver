@@ -11,10 +11,10 @@ class Model {
 
     this.tableau = []
     this.vectorVars = undefined
-    this.vectorB = undefined
+    this.vectorB = undefined // TODO: rename second member ou similaire
     this.vectorBase = undefined
 
-    this.maxIteration = 100
+    this.maxIteration = 10
   }
 
   addVar = variable => {
@@ -43,7 +43,7 @@ class Model {
   compile = optimizationType => { // TODO:  Voir si on peut virer variables d'écart quand contrainte égale
     // TODO: rename les i, j dégeu
     if ( optimizationType != "minimize" && optimizationType != "maximize") {
-      console.error(`Please pick between \'maximize\' and \'minimize\', not \'${optimizationType}\'`)
+      console.warn(`Please pick between \'maximize\' and \'minimize\', not \'${optimizationType}\'`)
       return
     }
     else {
@@ -59,7 +59,6 @@ class Model {
       let sign = (this.constraints[i].constraint === "inf" || this.constraints[i].constraint === "equal") ? 1 : - 1
       this.tableau[i] = new Float32Array(this.nbVars + this.nbVarEcart)
       for (let j = 0; j < this.nbVars; j++) {
-        console.log(this.constraints[i].equation[j])
         this.tableau[i][j] = sign * this.constraints[i].equation[j] // Ajout variables du problème
       }
       this.tableau[i][i + this.nbVars] = 1 // Ajout variables d'écart
@@ -75,20 +74,18 @@ class Model {
     }
 
     this.vectorBase = new Array(this.constraints.length) // Creation de la solution pour une base réalisable
-    for (let i = 0; i < this.constraints.length; i++) {
+    for (let i = 0; i < this.constraints.length; i++) { // TODO: remplacer par longueur du nb de var ecart plutot car quand ya des contraintes égales on a pas d'écart
       this.vectorBase[i] = this.varsEcart[i]
     }
-    console.log(this.vectorBase)
   }
 
 // TODO: tester un edge case avec une equation de type égalite
   optimize = () => {
-    console.log(this)
     let nbIteration = 0
     console.log(this.vectorB)
     console.log(this.vectorVars)
-    console.table(this.tableau)
     console.log(this.vectorBase)
+    console.table(this.tableau)
     while( this.vectorVars[this.argMax(this.vectorVars)] > 0 && nbIteration < this.maxIteration) { // TODO: ajouter un max iteration dans le while
       nbIteration++
       let enteringVarIndex = this.argMax(this.vectorVars)
@@ -115,11 +112,11 @@ class Model {
           else this.tableau[i][j] = copyTableau[i][j] - (copyTableau[i][enteringVarIndex] * copyTableau[leavingVarIndex][j]) / pivot // TODO:  voir division par 0
         }
       }
-
+      console.log("///// NEW ITERATION RESULT :")
       console.log(this.vectorB)
       console.log(this.vectorVars)
-      console.table(this.tableau)
       console.log(this.vectorBase)
+      console.table(this.tableau)
 
       this.computeObjectiveValue()
     }
@@ -151,8 +148,8 @@ class Model {
   leavingVar = enteringVarIndex => {
     let tmp = new Float32Array(this.vectorB.length)
     for (let i = 0; i < this.vectorB.length; i++) { // TODO: faire un check sur division par 0 :
-      // if this.tableau[i][enteringVarIndex] === 0, tmp[i] = Infinity
-      tmp[i] = this.vectorB[i] / this.tableau[i][enteringVarIndex]
+      if (this.tableau[i][enteringVarIndex] === 0 || this.tableau[i][enteringVarIndex] < 0) tmp[i] = -1 // Les négatifs ne nous intéressent pas
+      else tmp[i] = this.vectorB[i] / this.tableau[i][enteringVarIndex]
     }
     // console.log(tmp)
     let index = this.argMin(tmp)
@@ -175,7 +172,7 @@ class Model {
     let indexMin = 0
     let valeurMin = 100000 // TODO: Voir si 0 ou + infini à utiliser
     for (let i = 0; i < vector.length; i++) {
-      if (vector[i] < valeurMin && vector[i] >= 0) {
+      if (vector[i] < valeurMin && vector[i] >= 0) { // TODO: voir >, ou >= ( >= à la base mais voir le b === -0 à prendre ou pas ?)
         indexMin = i
         valeurMin = vector[i]
       }
@@ -229,7 +226,6 @@ let m = new Model()
 // Exemple 3 égalités
 // TODO: pivot === 0 => division by 0 proleme
 // m.addVar({coeff: 3})
-// m.addVar({coeff: 1})
 // m.addConstraint({equation: [2, 0], constraint: "inf", b: 20})
 
 // Exemple 4
@@ -246,7 +242,39 @@ let m = new Model()
 // m.addConstraint({equation: [3, -2], constraint: "sup", b: 6})
 // m.addConstraint({equation: [-1, 4], constraint: "sup", b: 8})
 
-
+// Exemple 6 placements
+// for ( let i = 0; i < 7 ; i++ ) m.addVar({coeff: 1.05})
+// for ( let i = 0; i < 6 ; i++ ) m.addVar({coeff: 1.12})
+// for ( let i = 0; i < 5 ; i++ ) m.addVar({coeff: 1.19})
+//
+// //1
+// m.addConstraint({equation: [1,0,0,0,0,0,0, 1,0,0,0,0,0, 1,0,0,0,0], constraint: "inf", b: 1000})
+// // m.addConstraint({equation: [1,0,0,0,0,0,0, 1,0,0,0,0,0, 1,0,0,0,0], constraint: "sup", b: 1000})
+// //2
+// m.addConstraint({equation: [-1,1,0,0,0,0,0, -1,1,0,0,0,0, -1,1,0,0,0], constraint: "inf", b: 0})
+// // m.addConstraint({equation: [1,-1,0,0,0,0,0, 1,-1,0,0,0,0, 1,-1,0,0,0], constraint: "sup", b: 0})
+// //3
+// m.addConstraint({equation: [0,-1,1,0,0,0,0, 0,-1,1,0,0,0, 0,-1,1,0,0], constraint: "inf", b: 0})
+// // m.addConstraint({equation: [0,1,-1,0,0,0,0, 0,1,-1,0,0,0, 0,1,-1,0,0], constraint: "sup", b: 0})
+// //4
+// m.addConstraint({equation: [0,0,-1,1,0,0,0, 0,0,-1,1,0,0, 0,0,-1,1,0], constraint: "inf", b: 0})
+// // m.addConstraint({equation: [0,0,1,-1,0,0,0, 0,0,1,-1,0,0, 0,0,1,-1,0], constraint: "sup", b: 0})
+// //5
+// m.addConstraint({equation: [0,0,0,-1,1,0,0, 0,0,0,-1,1,0, 0,0,0,-1,1], constraint: "inf", b: 0})
+// // m.addConstraint({equation: [0,0,0,1,-1,0,0, 0,0,0,1,-1,0, 0,0,0,1,-1], constraint: "sup", b: 0})
+// //6
+// m.addConstraint({equation: [0,0,0,0,-1,1,0, 0,0,0,0,-1,1, 0,0,0,0,-1], constraint: "inf", b: 0})
+// // m.addConstraint({equation: [0,0,0,0,1,-1,0, 0,0,0,0,1,-1, 0,0,0,0,1], constraint: "sup", b: 0})
+// //7
+// m.addConstraint({equation: [0,0,0,0,0,-1,1, 0,0,0,0,0,-1, 0,0,0,0,0], constraint: "inf", b: 0})
+// // m.addConstraint({equation: [0,0,0,0,0,1,-1, 0,0,0,0,0,1, 0,0,0,0,0], constraint: "sup", b: 0})
+m.addVar({coeff: 1.05})
+m.addVar({coeff: 1.05})
+m.addVar({coeff: 1.05})
+m.addVar({coeff: 1.10})
+m.addConstraint({equation: [1    ,0    ,0,0], constraint: "inf", b: 1000})
+m.addConstraint({equation: [-1.05,1    ,0,1], constraint: "inf", b: 0})
+m.addConstraint({equation: [0    ,-1.05,1,-1.1], constraint: "inf", b: 0})
 
 /////////////////////////////////////////
 m.compile("maximize")
