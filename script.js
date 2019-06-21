@@ -3,7 +3,7 @@
 class Model {
   constructor() {
     this.vars = []
-    this.varsEcart = [] // TODO: passer en Float32Array ?
+    this.varsEcart = [] // TODO: passer en Float64Array ?
     this.constraints = [] // TODO: ne plus utilise constraints.length, voir quelle variable virer, opti tableau ?
     this.nbVars = 0
     this.nbVarEcart = 0
@@ -19,17 +19,29 @@ class Model {
 
   addVar = variable => {
     this.vars.push({
-      id: variable.id || this.nbVars, // voir utilite
+      id: this.nbVars, // voir utilite
       name: variable.name || undefined,
       coeff: variable.coeff || 0,
-      value: 0 // voir utilite
     })
     this.nbVars++
   }
-  addVars = variables => { } // TODO:
+  addVars = variables => {
+    for ( let i = 0; i < variables.coeffs.length; i++ ) {
+      this.vars.push({
+        id: this.nbVars, // voir utilite
+        name: variables.names === undefined ? undefined : variables.names[i],
+        coeff: variables.coeffs[i] || 0,
+      })
+      this.nbVars++
+    }
+  }
 
   addConstraint = constraint => this.constraints.push(constraint)
-  addConstraints = constraints => { } // TODO:
+  addConstraints = constraints => {
+    for ( let i = 0; i < constraints.equations.length; i++ ) {
+      this.constraints.push( {equation: constraints.equations[i], constraint: constraints.constraints[i], b: constraints.Bs[i]} )
+    }
+  }
 
   countNbVarEcart = () => {
     for (let i = 0; i < this.constraints.length; i++) {
@@ -57,17 +69,17 @@ class Model {
     this.countNbVarEcart()
     for (let i = 0; i < this.constraints.length; i++) { // TODO: utiliser arr.map au lieu des for dégeu ?
       let sign = (this.constraints[i].constraint === "inf" || this.constraints[i].constraint === "equal") ? 1 : - 1
-      this.tableau[i] = new Float32Array(this.nbVars + this.nbVarEcart)
+      this.tableau[i] = new Float64Array(this.nbVars + this.nbVarEcart)
       for (let j = 0; j < this.nbVars; j++) {
         this.tableau[i][j] = sign * this.constraints[i].equation[j] // Ajout variables du problème
       }
       this.tableau[i][i + this.nbVars] = 1 // Ajout variables d'écart
     }
-    this.vectorVars = new Float32Array(this.nbVars + this.nbVarEcart)
+    this.vectorVars = new Float64Array(this.nbVars + this.nbVarEcart)
     for (let i = 0; i < this.nbVars; i++) {
       this.vectorVars[i] = this.vars[i].coeff
     }
-    this.vectorB = new Float32Array(this.constraints.length)
+    this.vectorB = new Float64Array(this.constraints.length)
     for (let i = 0; i < this.constraints.length; i++) {
       let sign = (this.constraints[i].constraint === "inf" || this.constraints[i].constraint === "equal") ? 1 : - 1
       this.vectorB[i] = sign * this.constraints[i].b
@@ -113,9 +125,9 @@ class Model {
         }
       }
       console.log("///// NEW ITERATION RESULT :")
-      console.log(this.vectorB)
-      console.log(this.vectorVars)
-      console.log(this.vectorBase)
+      console.log("vectorb : ", this.vectorB)
+      console.log("vectorVars : ", this.vectorVars)
+      console.log("vectorBase : ", this.vectorBase)
       console.table(this.tableau)
 
       this.computeObjectiveValue()
@@ -124,14 +136,14 @@ class Model {
   }
 
   computeObjectiveValue = () => {
-    let solutionVector = new Float32Array(this.nbVars + this.nbVarEcart)
+    let solutionVector = new Float64Array(this.nbVars + this.nbVarEcart)
     for (let i = 0; i < solutionVector.length; i++) {
       let indexVectorB = this.vectorBase.findIndex(x => x === i)
       if (indexVectorB != -1) solutionVector[i] = this.vectorB[indexVectorB]
       else solutionVector[i] = 0
     }
     console.log("Optimum Solution : ", solutionVector)
-    let coefficients = new Float32Array(this.nbVars + this.nbVarEcart)
+    let coefficients = new Float64Array(this.nbVars + this.nbVarEcart)
     for (let i = 0; i < this.nbVars; i++) coefficients[i] = this.vars[i].coeff
     let optimum = this.dot(solutionVector, coefficients)
     console.log("Optimum value of Objective function : ", optimum)
@@ -146,7 +158,7 @@ class Model {
   }
 
   leavingVar = enteringVarIndex => {
-    let tmp = new Float32Array(this.vectorB.length)
+    let tmp = new Float64Array(this.vectorB.length)
     for (let i = 0; i < this.vectorB.length; i++) { // TODO: faire un check sur division par 0 :
       if (this.tableau[i][enteringVarIndex] === 0 || this.tableau[i][enteringVarIndex] < 0) tmp[i] = -1 // Les négatifs ne nous intéressent pas
       else tmp[i] = this.vectorB[i] / this.tableau[i][enteringVarIndex]
@@ -173,6 +185,7 @@ class Model {
     let valeurMin = 100000 // TODO: Voir si 0 ou + infini à utiliser
     for (let i = 0; i < vector.length; i++) {
       if (vector[i] < valeurMin && vector[i] >= 0) { // TODO: voir >, ou >= ( >= à la base mais voir le b === -0 à prendre ou pas ?)
+                                                     // TODO: + voir eventuellement >= -epsilon pour gérer imprécision float 64
         indexMin = i
         valeurMin = vector[i]
       }
@@ -185,7 +198,7 @@ class Model {
   copyTableau = () => {
     let arr = []
     for (let i = 0; i < this.tableau.length; i++) {
-      arr[i] = new Float32Array(this.tableau[i].length)
+      arr[i] = new Float64Array(this.tableau[i].length)
       for (let j = 0; j < this.tableau[i].length; j++) {
         arr[i][j] = this.tableau[i][j]
       }
@@ -201,19 +214,22 @@ let m = new Model()
 // exemple 1
 // m.addVar({coeff: 1})
 // m.addVar({coeff: 2})
+m.addVars({
+  coeffs: [1, 2],
+})
+
 // m.addConstraint({equation: [1, 3], constraint: "inf", b: 21})
 // m.addConstraint({equation: [-1, 3], constraint: "inf", b: 18})
 // m.addConstraint({equation: [1, -1], constraint: "inf", b: 5})
-
-// m.addConstraints({
-//   equations: [
-//     [1, 3],
-//     [-1, 3],
-//     [1, -1]
-//   ],
-//   constraints: ["inf", "inf", "inf"],
-//   bs: [21, 18, 5]
-// })
+m.addConstraints({
+  equations: [
+    [1, 3],
+    [-1, 3],
+    [1, -1]
+  ],
+  constraints: ["inf", "inf", "inf"],
+  Bs: [21, 18, 5]
+})
 
 
 // exemple 2
@@ -268,15 +284,26 @@ let m = new Model()
 // //7
 // m.addConstraint({equation: [0,0,0,0,0,-1,1, 0,0,0,0,0,-1, 0,0,0,0,0], constraint: "inf", b: 0})
 // // m.addConstraint({equation: [0,0,0,0,0,1,-1, 0,0,0,0,0,1, 0,0,0,0,0], constraint: "sup", b: 0})
-m.addVar({coeff: 1.05})
-m.addVar({coeff: 1.05})
-m.addVar({coeff: 1.05})
-m.addVar({coeff: 1.10})
-m.addConstraint({equation: [1    ,0    ,0,0], constraint: "inf", b: 1000})
-m.addConstraint({equation: [-1.05,1    ,0,1], constraint: "inf", b: 0})
-m.addConstraint({equation: [0    ,-1.05,1,-1.1], constraint: "inf", b: 0})
+// m.addVar({coeff: 1.05})
+// m.addVar({coeff: 1.05})
+// m.addVar({coeff: 1.05})
+// m.addVar({coeff: 1.12})
+// m.addVar({coeff: 1.12})
+// m.addConstraint({equation: [1    ,0    ,0 ,1    ,0], constraint: "inf", b: 1000})
+// m.addConstraint({equation: [-1.05,1    ,0 ,0    ,1], constraint: "inf", b: 0})
+// m.addConstraint({equation: [0    ,-1.05,1 ,-1.12,0], constraint: "inf", b: 0})
+
+// Exemple 7 EXO 12 A FAIRE BASE CANONIQUE NON REALISABLE
+// m.addVar({coeff: 56})
+// m.addVar({coeff: 42})
+// m.addConstraint({equation: [10,11], constraint: "inf", b: 10700})
+// m.addConstraint({equation: [1,1], constraint: "sup", b: 1000})
+// m.addConstraint({equation: [1,0], constraint: "inf", b: 700})
+
+// TODO: test dans base canonique non faisable, programme 2 exo 3, de mettre -32 au lieu de 32 sur l'équation 3, voir s'il faut passer les valeur b en positif
 
 /////////////////////////////////////////
 m.compile("maximize")
+// m.compile("minimize")
 m.optimize()
 console.log(m)
