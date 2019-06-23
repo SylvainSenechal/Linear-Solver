@@ -4,11 +4,9 @@ class Model {
   constructor() {
     this.vars = []
     this.varsEcart = [] // TODO: passer en Float64Array ?
-    this.varsArtificial = []
     this.constraints = [] // TODO: ne plus utilise constraints.length, voir quelle variable virer, opti tableau ?
     this.nbVars = 0
     this.nbVarEcart = 0
-    this.nbVarArtificials = 0
     this.optimizationType = undefined
 
     this.tableau = []
@@ -17,7 +15,6 @@ class Model {
     this.vectorBase = undefined
 
     this.maxIteration = 50
-    this.infinity = -10000000
   }
 
   addVar = variable => {
@@ -55,124 +52,52 @@ class Model {
     }
   }
 
-  countNbVarArtifical = () => {
-    for (let i = 0; i < this.constraints.length; i++) {
-      if (this.constraints[i].constraint === "equal") {
-        this.varsArtificial.push(this.nbVarArtificials + this.nbVarEcart + this.nbVars)
-        this.nbVarArtificials++
-      }
-      else if (this.constraints[i].constraint === "inf" && this.constraints[i].b < 0 ) { // TODO: voir > ou >=
-        this.varsArtificial.push(this.nbVarArtificials + this.nbVarEcart + this.nbVars)
-        this.nbVarArtificials++
-      }
-      else if (this.constraints[i].constraint === "sup" && this.constraints[i].b > 0 ) { // >= 0 juste ici ?
-        this.varsArtificial.push(this.nbVarArtificials + this.nbVarEcart + this.nbVars)
-        this.nbVarArtificials++
-      }
-    }
-  }
-
   compile = optimizationType => { // TODO:  Voir si on peut virer variables d'écart quand contrainte égale
     // TODO: rename les i, j dégeu
-    if ( optimizationType != "minimize" && optimizationType != "maximize" ) {
+    if ( optimizationType != "minimize" && optimizationType != "maximize") {
       console.warn(`Please pick between \'maximize\' and \'minimize\', not \'${optimizationType}\'`)
       return
     }
-    else this.optimizationType = optimizationType
-
+    else {
+      this.optimizationType = optimizationType
+      if ( this.optimizationType === "minimize" ) {
+        for ( let i = 0; i < this.nbVars; i++ ) {
+          this.vars[i].coeff = -this.vars[i].coeff
+        }
+      }
+    }
     this.countNbVarEcart()
-    this.countNbVarArtifical()
-    console.log(this.nbVars)
-    console.log(this.nbVarEcart)
-    console.log(this.nbVarArtificials)
-    console.log("///")
-    console.log(this.vars)
-    console.log(this.varsEcart)
-    console.log(this.varsArtificial)
-
-    let nbEcart = 0
-    let nbArtif = 0
     for (let i = 0; i < this.constraints.length; i++) { // TODO: utiliser arr.map au lieu des for dégeu ?
-      this.tableau[i] = new Float64Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials)
-      let sign = this.constraints[i].b < 0 ? -1 : 1
+      let sign = (this.constraints[i].constraint === "inf" || this.constraints[i].constraint === "equal") ? 1 : - 1
+      this.tableau[i] = new Float64Array(this.nbVars + this.nbVarEcart)
       for (let j = 0; j < this.nbVars; j++) {
         this.tableau[i][j] = sign * this.constraints[i].equation[j] // Ajout variables du problème
       }
-
-      if ( this.constraints[i].constraint === "equal" ) {
-        this.tableau[i][nbArtif + this.nbVars + this.nbVarEcart] = 1
-        nbArtif++
-      }
-      if ( this.constraints[i].constraint === "inf" && this.constraints[i].b >= 0 ) {
-        this.tableau[i][nbEcart + this.nbVars] = 1
-        nbEcart++
-      }
-      else if ( this.constraints[i].constraint === "inf" && this.constraints[i].b < 0  ) {
-        this.tableau[i][nbEcart + this.nbVars] = -1
-        nbEcart++
-        this.tableau[i][nbArtif + this.nbVars + this.nbVarEcart] = 1
-        nbArtif++
-      }
-      if ( this.constraints[i].constraint === "sup" && this.constraints[i].b >= 0 ) {
-        this.tableau[i][nbEcart + this.nbVars] = -1
-        nbEcart++
-        this.tableau[i][nbArtif + this.nbVars + this.nbVarEcart] = 1
-        nbArtif++
-      }
-      else if ( this.constraints[i].constraint === "sup" && this.constraints[i].b < 0  ) {
-        this.tableau[i][nbEcart + this.nbVars] = 1
-        nbEcart++
-      }
+      this.tableau[i][i + this.nbVars] = 1 // Ajout variables d'écart
     }
-    this.vectorVars = new Float64Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials)
-    if ( this.optimizationType === "minimize" ) {
-      for ( let i = 0; i < this.nbVars; i++ ) this.vars[i].coeff = -this.vars[i].coeff
-      this.infinity = - this.infinity
+    this.vectorVars = new Float64Array(this.nbVars + this.nbVarEcart)
+    for (let i = 0; i < this.nbVars; i++) {
+      this.vectorVars[i] = this.vars[i].coeff
     }
-    for ( let i = 0; i < this.nbVars; i++ )           this.vectorVars[i] = this.vars[i].coeff
-    for ( let i = 0; i < this.nbVarArtificials; i++ ) this.vectorVars[this.nbVars + this.nbVarEcart + i] = this.infinity // Remplacer par infinity ?
-
     this.vectorB = new Float64Array(this.constraints.length)
     for (let i = 0; i < this.constraints.length; i++) {
-      // let sign = (this.constraints[i].constraint === "inf" || this.constraints[i].constraint === "equal") ? 1 : - 1
-      this.vectorB[i] = Math.abs(this.constraints[i].b) // * sign
+      let sign = (this.constraints[i].constraint === "inf" || this.constraints[i].constraint === "equal") ? 1 : - 1
+      this.vectorB[i] = sign * this.constraints[i].b
     }
 
     this.vectorBase = new Array(this.constraints.length) // Creation de la solution pour une base réalisable
-    nbEcart = 0
-    nbArtif = 0
-    for (let i = 0; i < this.constraints.length; i++) {
-      if ( this.constraints[i].constraint === "equal" ) {
-        this.vectorBase[i] = this.varsArtificial[nbArtif]
-        nbArtif++
-      }
-      else if ( this.constraints[i].constraint === "inf" && this.constraints[i].b < 0 ) {
-        this.vectorBase[i] = this.varsArtificial[nbArtif]
-        nbArtif++
-      }
-      else if ( this.constraints[i].constraint === "sup" && this.constraints[i].b >= 0 ) {
-        this.vectorBase[i] = this.varsArtificial[nbArtif]
-        nbArtif++
-      }
-      else {
-        this.vectorBase[i] = this.varsEcart[nbEcart]
-        nbEcart++
-      }
+    for (let i = 0; i < this.constraints.length; i++) { // TODO: remplacer par longueur du nb de var ecart plutot car quand ya des contraintes égales on a pas d'écart
+      this.vectorBase[i] = this.varsEcart[i]
     }
 
-    // Réécriture de la fonction objective en fonction des variable artificelles :
-    let sign = this.optimizationType === "maximize" ? - 1 : 1
-    for (let i = 0; i < this.constraints.length; i++ ) {
-      for ( let j = 0; j < this.nbVars + this.nbVarEcart; j++) {
-        this.vectorVars[j] += this.tableau[i][j] * this.infinity * sign
-      }
-    }
-    for (let i = 0; i < this.nbVarArtificials; i++ ) this.vectorVars[i + this.nbVars + this.nbVarEcart] = 0
-
-
-
+    this.checkFeasibleCanonicalBase()
   }
 
+  checkFeasibleCanonicalBase = () => {
+    for ( let i = 0; i < this.constraints.length; i++ ) {
+      console.log(this.constraints[i])
+    }
+  }
 
 // TODO: tester un edge case avec une equation de type égalite
   optimize = () => {
@@ -189,6 +114,7 @@ class Model {
       this.vectorBase[leavingVarIndex] = enteringVarIndex
 
       let pivot = this.tableau[leavingVarIndex][enteringVarIndex]
+
       let copyVectorB = [...this.vectorB]
       let copyVectorVars = [...this.vectorVars]
       let copyTableau = this.copyTableau()
@@ -384,37 +310,21 @@ let m = new Model()
 
 // TODO: test dans base canonique non faisable, programme 2 exo 3, de mettre -32 au lieu de 32 sur l'équation 3, voir s'il faut passer les valeur b en positif
 
-// Exemple 1 base canonique non réalisable
-// m.addVars({
-//   coeffs: [1, 2, 3]
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [1, 1, 0],
-//     [2, 2, -1],
-//     [12, 8, -5]
-//   ],
-//   constraints: ["inf", "equal", "equal"],
-//   Bs: [5, 6, 32]
-// })
-
-// Exemple 2 base canonique non réalisable
 m.addVars({
-  coeffs: [3, 10]
+  coeffs: [1, 2, 3]
 })
 
 m.addConstraints({
   equations: [
-    [5, 6],
-    [2, 7]
+    [1, 1, 0],
+    [2, 1, -1],
+    [12, 8, -5]
   ],
-  constraints: ["sup", "sup"],
-  Bs: [10, 14]
+  constraints: ["inf", "equal", "equal"],
+  Bs: [5, 6, 32]
 })
 
-// TODO:  tester min et max des pénalisees, attention à -Ma1 ou + Ma1
-// TODO: tester un égal négatif
+
 /////////////////////////////////////////
 m.compile("maximize")
 // m.compile("minimize")
