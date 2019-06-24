@@ -1,5 +1,10 @@
 'use strict';
 
+// TODO: voir s'il faut ajouter les contraintes Xi > 0
+// TODO: passer en module la librairie
+// TODO: rename les i, j dégeu
+// TODO: utiliser arr.map au lieu des for dégeu ?
+
 class Model {
   constructor() {
     this.vars = []
@@ -13,7 +18,7 @@ class Model {
 
     this.tableau = []
     this.vectorVars = undefined
-    this.vectorB = undefined // TODO: rename second member ou similaire
+    this.vectorB = undefined
     this.vectorBase = undefined
 
     this.maxIteration = 50
@@ -61,19 +66,19 @@ class Model {
         this.varsArtificial.push(this.nbVarArtificials + this.nbVarEcart + this.nbVars)
         this.nbVarArtificials++
       }
-      else if (this.constraints[i].constraint === "inf" && this.constraints[i].b < 0 ) { // TODO: voir > ou >=
+      else if (this.constraints[i].constraint === "inf" && this.constraints[i].b < 0 ) {
         this.varsArtificial.push(this.nbVarArtificials + this.nbVarEcart + this.nbVars)
         this.nbVarArtificials++
       }
-      else if (this.constraints[i].constraint === "sup" && this.constraints[i].b > 0 ) { // >= 0 juste ici ?
+      else if (this.constraints[i].constraint === "sup" && this.constraints[i].b >= 0 ) {
         this.varsArtificial.push(this.nbVarArtificials + this.nbVarEcart + this.nbVars)
         this.nbVarArtificials++
       }
     }
   }
 
-  compile = optimizationType => { // TODO:  Voir si on peut virer variables d'écart quand contrainte égale
-    // TODO: rename les i, j dégeu
+
+  compile = optimizationType => {
     if ( optimizationType != "minimize" && optimizationType != "maximize" ) {
       console.warn(`Please pick between \'maximize\' and \'minimize\', not \'${optimizationType}\'`)
       return
@@ -92,7 +97,7 @@ class Model {
 
     let nbEcart = 0
     let nbArtif = 0
-    for (let i = 0; i < this.constraints.length; i++) { // TODO: utiliser arr.map au lieu des for dégeu ?
+    for (let i = 0; i < this.constraints.length; i++) {
       this.tableau[i] = new Float64Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials)
       let sign = this.constraints[i].b < 0 ? -1 : 1
       for (let j = 0; j < this.nbVars; j++) {
@@ -163,25 +168,24 @@ class Model {
     // Réécriture de la fonction objective en fonction des variable artificelles :
     let sign = this.optimizationType === "maximize" ? - 1 : 1
     for (let i = 0; i < this.constraints.length; i++ ) {
-      for ( let j = 0; j < this.nbVars + this.nbVarEcart; j++) {
-        this.vectorVars[j] += this.tableau[i][j] * this.infinity * sign
+      console.log(this.vectorBase)
+      if ( this.vectorBase[i] >= (this.nbVars + this.nbVarEcart - 1) ) {
+        for ( let j = 0; j < this.nbVars + this.nbVarEcart; j++) {
+          this.vectorVars[j] += this.tableau[i][j] * this.infinity * sign
+        }
       }
     }
-    for (let i = 0; i < this.nbVarArtificials; i++ ) this.vectorVars[i + this.nbVars + this.nbVarEcart] = 0
-
-
-
+    for (let i = 0; i < this.vectorBase.length; i++ ) this.vectorVars[this.vectorBase[i]] = 0
   }
 
 
-// TODO: tester un edge case avec une equation de type égalite
   optimize = () => {
     let nbIteration = 0
     console.log(this.vectorB)
     console.log(this.vectorVars)
     console.log(this.vectorBase)
     console.table(this.tableau)
-    while( this.vectorVars[this.argMax(this.vectorVars)] > 0 && nbIteration < this.maxIteration) { // TODO: ajouter un max iteration dans le while
+    while( this.vectorVars[this.argMax(this.vectorVars)] > 0 && nbIteration < this.maxIteration) {
       nbIteration++
       let enteringVarIndex = this.argMax(this.vectorVars)
       let leavingVarIndex = this.leavingVar(enteringVarIndex)
@@ -193,17 +197,17 @@ class Model {
       let copyVectorVars = [...this.vectorVars]
       let copyTableau = this.copyTableau()
       for (let i = 0; i < this.vectorB.length; i++) { // Update vectorB
-        if (i === leavingVarIndex) this.vectorB[i] = copyVectorB[i] / pivot // TODO:  voir division par 0
-        else this.vectorB[i] = copyVectorB[i] - (this.tableau[i][enteringVarIndex] * copyVectorB[leavingVarIndex]) / pivot // TODO:  voir division par 0
+        if (i === leavingVarIndex) this.vectorB[i] = copyVectorB[i] / pivot
+        else this.vectorB[i] = copyVectorB[i] - (this.tableau[i][enteringVarIndex] * copyVectorB[leavingVarIndex]) / pivot
       }
       for (let i = 0; i < this.vectorVars.length; i++) { // Update objective
-        this.vectorVars[i] = copyVectorVars[i] - (copyVectorVars[enteringVarIndex] * this.tableau[leavingVarIndex][i]) / pivot // TODO:  voir division par 0
+        this.vectorVars[i] = copyVectorVars[i] - (copyVectorVars[enteringVarIndex] * this.tableau[leavingVarIndex][i]) / pivot
       }
 
       for (let i = 0; i < this.tableau.length; i++) { // Update tableau
         for (let j = 0; j < this.tableau[i].length; j++) {
-          if (i === leavingVarIndex) this.tableau[i][j] = copyTableau[i][j] / pivot // TODO:  voir division par 0
-          else this.tableau[i][j] = copyTableau[i][j] - (copyTableau[i][enteringVarIndex] * copyTableau[leavingVarIndex][j]) / pivot // TODO:  voir division par 0
+          if (i === leavingVarIndex) this.tableau[i][j] = copyTableau[i][j] / pivot
+          else this.tableau[i][j] = copyTableau[i][j] - (copyTableau[i][enteringVarIndex] * copyTableau[leavingVarIndex][j]) / pivot
         }
       }
       console.log("///// NEW ITERATION RESULT :")
@@ -226,7 +230,12 @@ class Model {
     }
     console.log("Optimum Solution : ", solutionVector)
     let coefficients = new Float64Array(this.nbVars + this.nbVarEcart)
-    for (let i = 0; i < this.nbVars; i++) coefficients[i] = this.vars[i].coeff
+    if ( this.optimizationType === "minimize" ) {
+      for (let i = 0; i < this.nbVars; i++) coefficients[i] = - this.vars[i].coeff
+    }
+    else {
+      for (let i = 0; i < this.nbVars; i++) coefficients[i] = this.vars[i].coeff
+    }
     let optimum = this.dot(solutionVector, coefficients)
     console.log("Optimum value of Objective function : ", optimum)
   }
@@ -241,7 +250,7 @@ class Model {
 
   leavingVar = enteringVarIndex => {
     let tmp = new Float64Array(this.vectorB.length)
-    for (let i = 0; i < this.vectorB.length; i++) { // TODO: faire un check sur division par 0 :
+    for (let i = 0; i < this.vectorB.length; i++) {
       if (this.tableau[i][enteringVarIndex] === 0 || this.tableau[i][enteringVarIndex] < 0) tmp[i] = -1 // Les négatifs ne nous intéressent pas
       else tmp[i] = this.vectorB[i] / this.tableau[i][enteringVarIndex]
     }
@@ -266,8 +275,7 @@ class Model {
     let indexMin = 0
     let valeurMin = 100000 // TODO: Voir si 0 ou + infini à utiliser
     for (let i = 0; i < vector.length; i++) {
-      if (vector[i] < valeurMin && vector[i] >= 0) { // TODO: voir >, ou >= ( >= à la base mais voir le b === -0 à prendre ou pas ?)
-                                                     // TODO: + voir eventuellement >= -epsilon pour gérer imprécision float 64
+      if (vector[i] < valeurMin && vector[i] >= 0) { // TODO: voir eventuellement >= -epsilon pour gérer imprécision float 64
         indexMin = i
         valeurMin = vector[i]
       }
@@ -320,11 +328,6 @@ let m = new Model()
 // m.addConstraint({equation: [3, -2], constraint: "inf", b: 7})
 // m.addConstraint({equation: [-1, 4], constraint: "inf", b: 9})
 // m.addConstraint({equation: [-2, 3], constraint: "inf", b: 6})
-
-// Exemple 3 égalités
-// TODO: pivot === 0 => division by 0 proleme
-// m.addVar({coeff: 3})
-// m.addConstraint({equation: [2, 0], constraint: "inf", b: 20})
 
 // Exemple 4
 // m.addVar({coeff: 1})
@@ -382,7 +385,6 @@ let m = new Model()
 // m.addConstraint({equation: [1,1], constraint: "sup", b: 1000})
 // m.addConstraint({equation: [1,0], constraint: "inf", b: 700})
 
-// TODO: test dans base canonique non faisable, programme 2 exo 3, de mettre -32 au lieu de 32 sur l'équation 3, voir s'il faut passer les valeur b en positif
 
 // Exemple 1 base canonique non réalisable
 // m.addVars({
@@ -400,21 +402,48 @@ let m = new Model()
 // })
 
 // Exemple 2 base canonique non réalisable
+// m.addVars({
+//   coeffs: [3, 10]
+// })
+//
+// m.addConstraints({
+//   equations: [
+//     [5, 6],
+//     [2, 7]
+//   ],
+//   constraints: ["sup", "sup"],
+//   Bs: [10, 14]
+// })
+
+
 m.addVars({
-  coeffs: [3, 10]
+  coeffs: [1, 2]
 })
 
 m.addConstraints({
   equations: [
-    [5, 6],
-    [2, 7]
+    [1, 1],
+    [3, -2],
+    [-1, 4]
   ],
-  constraints: ["sup", "sup"],
-  Bs: [10, 14]
+  constraints: ["inf", "sup", "sup"],
+  Bs: [12, 6, 8]
 })
 
-// TODO:  tester min et max des pénalisees, attention à -Ma1 ou + Ma1
-// TODO: tester un égal négatif
+// A VERIFIER
+// m.addVars({
+//   coeffs: [1, 1]
+// })
+//
+// m.addConstraints({
+//   equations: [
+//     [1, 1],
+//     [1, 0]
+//   ],
+//   constraints: ["inf", "equal"],
+//   Bs: [5, -1]
+// })
+
 /////////////////////////////////////////
 m.compile("maximize")
 // m.compile("minimize")
