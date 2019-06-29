@@ -21,7 +21,6 @@ class Model {
     this.nbVars = 0
     this.nbVarEcart = 0
     this.nbVarArtificials = 0
-    this.nbGMIcuts = 0
     this.optimizationType = undefined
 
     this.tableau = []
@@ -38,7 +37,6 @@ class Model {
       id: this.nbVars, // voir utilite
       name: variable.name || undefined,
       coeff: variable.coeff || 0,
-      type: variable.type
     })
     this.nbVars++
   }
@@ -48,7 +46,6 @@ class Model {
         id: this.nbVars, // voir utilite
         name: variables.names === undefined ? undefined : variables.names[i],
         coeff: variables.coeffs[i] || 0,
-        type: variables.types[i] === undefined ? console.warn(`Missing variable type, ${variables.coeffs.length} variables given but only ${variables.types.length} type specified`) : variables.types[i]
       })
       this.nbVars++
     }
@@ -108,8 +105,7 @@ class Model {
     let nbEcart = 0
     let nbArtif = 0
     for (let i = 0; i < this.constraints.length; i++) {
-      // this.tableau[i] = new Float64Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials)
-      this.tableau[i] = new Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials).fill(0)
+      this.tableau[i] = new Float64Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials)
       let sign = this.constraints[i].b < 0 ? -1 : 1
       for (let j = 0; j < this.nbVars; j++) {
         this.tableau[i][j] = sign * this.constraints[i].equation[j] // Ajout variables du problème
@@ -140,7 +136,7 @@ class Model {
         nbEcart++
       }
     }
-    this.vectorVars = new Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials)
+    this.vectorVars = new Float64Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials)
     if (this.optimizationType === 'minimize') {
       for (let i = 0; i < this.nbVars; i++) this.vars[i].coeff = - this.vars[i].coeff
       this.infinity = - this.infinity
@@ -148,7 +144,7 @@ class Model {
     for (let i = 0; i < this.nbVars; i++)           this.vectorVars[i] = this.vars[i].coeff
     for (let i = 0; i < this.nbVarArtificials; i++) this.vectorVars[this.nbVars + this.nbVarEcart + i] = this.infinity // Remplacer par infinity ?
 
-    this.vectorB = new Array(this.constraints.length)
+    this.vectorB = new Float64Array( this.constraints.length )
     for (let i = 0; i < this.constraints.length; i++) {
       // let sign = (this.constraints[i].constraint === 'inf' || this.constraints[i].constraint === 'equal') ? 1 : - 1
       this.vectorB[i] = Math.abs(this.constraints[i].b) // * sign
@@ -231,136 +227,17 @@ class Model {
       this.computeObjectiveValue()
     }
 
-
-    //////////////////////////////
-    // Gomory mixed integer cuts :
-    //////////////////////////////
-
-    // faire une fonction check integer et un while dessus
-    // let row = checkinterger, if a !== -1, refaire a la fin du while
-    let rowNotInteger = this.checkInterger()
-    // while (rowNotInteger !== -1) {
-      // for (let i = 0; i < this.vars.length; i++) {
-          // Pour chaque variable, si elle est entière on regarde si la valeur trouvée est bien entière
-        let fractionalX = this.vectorB[rowNotInteger] - Math.floor(this.vectorB[rowNotInteger])
-        // if (fractionalX !== 0 && this.vars[i].type === 'int') {
-          console.log("new cut")
-          this.nbGMIcuts++
-          this.vectorBase.push(this.nbVars + this.nbVarEcart + this.nbVarArtificials + this.nbGMIcuts)
-          this.vectorB.push(-fractionalX)
-          this.vectorVars.push(0)
-
-          // Ajout dernière colonne au tableau :
-          this.tableau.map(row => row.push(0))
-          // Ajout dernière ligne au tableau :
-          this.tableau.push(new Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials + this.nbGMIcuts).fill(0))
-          // La derniere colonne de la ligne ajoutée est hors base :
-          this.tableau[this.tableau.length - 1][this.tableau[0].length - 1] = 1
-          // Calcul du tableau de la ligne ajoutée selon GMI cut
-          for (let i = 0; i < this.tableau[0].length - 1; i++) {
-            // let fractionalXi = this.tableau[rowNotInteger][i] - Math.floor(this.tableau[rowNotInteger][i])
-            let fractionalXi = this.tableau[rowNotInteger][i] >= 0 ?
-            this.tableau[rowNotInteger][i] - Math.floor(this.tableau[rowNotInteger][i]) :
-            - this.tableau[rowNotInteger][i] - Math.floor(-this.tableau[rowNotInteger][i])
-            console.log(fractionalXi)
-            // if (fractionalXi <= fractionalX) {
-            if ( fractionalXi === 0) {
-              this.tableau[this.tableau.length - 1][i] = 0
-            }
-            else if (this.tableau[rowNotInteger][i] >= 0) {
-              this.tableau[this.tableau.length - 1][i] = - fractionalXi
-              console.log("neg")
-
-            } else {
-              // TODO: check car rentre pas dedans et on se retrouve avec -0.5 au lieu de -1.5
-              console.log("oui")
-              this.tableau[this.tableau.length - 1][i] = - (fractionalX / (fractionalX - 1)) * this.tableau[rowNotInteger][i]
-              // todo fractionalXi === 0 ? 0 : a rajouter peut être juste au dessus
-            }
-          }
-        // }
-      // }
-      console.table(this.tableau)
-      this.dualSimplex()
-      rowNotInteger = this.checkInterger()
-    // }
-
-
-    console.log('vectorb : ', this.vectorB)
-    console.log('vectorVars : ', this.vectorVars)
-    console.log('vectorBase : ', this.vectorBase)
-    console.table(this.tableau)
-
-
-  }
-// TODO: a arrondir les trucs pénible en cours de route
-// pour les variables donnees au début, virer chiffres après virgule en faisant x10.. /10
-  checkInterger = () => {
-    for (let i = 0; i < this.vars.length; i++) {
-        // Pour chaque variable, si elle est entière on regarde si la valeur trouvée est bien entière
-      let rowNotInteger = this.vectorBase.findIndex( x => x === i)
-      let fractionalX = this.vectorB[rowNotInteger] - Math.floor(this.vectorB[rowNotInteger])
-      if (fractionalX !== 0 && this.vars[i].type === 'int') {
-        return rowNotInteger
-      }
-    }
-    return -1
-  }
-
-  dualSimplex = () => {
-    console.log(this.vectorB[this.argMinDual(this.vectorB)])
-    while (this.vectorB[this.argMinDual(this.vectorB)] < 0) { // TODO: add max iteration ?
-      console.log(this.vectorB[this.argMinDual(this.vectorB)])
-      let leavingVarIndex = this.argMinDual(this.vectorB)
-      let enteringVarIndex = this.leavingVarDual(leavingVarIndex)
-      console.log(leavingVarIndex)
-
-      this.vectorBase[leavingVarIndex] = enteringVarIndex // inversé exprès pour dual
-
-      let pivot = this.tableau[leavingVarIndex][enteringVarIndex]
-      console.log(pivot)
-      let copyVectorB = [...this.vectorB]
-      let copyVectorVars = [...this.vectorVars]
-      let copyTableau = this.copyTableau()
-      for (let i = 0; i < this.vectorB.length; i++) { // Update vectorB
-        if (i === leavingVarIndex) this.vectorB[i] = copyVectorB[i] / pivot
-        else this.vectorB[i] = copyVectorB[i] - (this.tableau[i][enteringVarIndex] * copyVectorB[leavingVarIndex]) / pivot
-      }
-      for (let i = 0; i < this.vectorVars.length; i++) { // Update objective
-        this.vectorVars[i] = copyVectorVars[i] - (copyVectorVars[enteringVarIndex] * this.tableau[leavingVarIndex][i]) / pivot
-      }
-
-      for (let i = 0; i < this.tableau.length; i++) { // Update tableau
-        for (let j = 0; j < this.tableau[i].length; j++) {
-          if (i === leavingVarIndex) this.tableau[i][j] = copyTableau[i][j] / pivot
-          else this.tableau[i][j] = copyTableau[i][j] - (copyTableau[i][enteringVarIndex] * copyTableau[leavingVarIndex][j]) / pivot
-        }
-      }
-      console.log('///// NEW ITERATION DUAL RESULT :')
-      console.log('vectorb : ', this.vectorB)
-      console.log('vectorVars : ', this.vectorVars)
-      console.log('vectorBase : ', this.vectorBase)
-      console.table(this.tableau)
-
-      this.computeObjectiveValue()
-    }
   }
 
   computeObjectiveValue = () => {
-    // let solutionVector = new Float64Array(this.nbVars + this.nbVarEcart)
-    // for (let i = 0; i < solutionVector.length; i++) {
-    //   let indexVectorB = this.vectorBase.findIndex( x => x === i)
-    //   if (indexVectorB !== -1) solutionVector[i] = this.vectorB[indexVectorB]
-    //   else solutionVector[i] = 0
-    // }
-    let solutionVector = new Float64Array(this.nbVars)
+    let solutionVector = new Float64Array(this.nbVars + this.nbVarEcart)
     for (let i = 0; i < solutionVector.length; i++) {
       let indexVectorB = this.vectorBase.findIndex( x => x === i)
-      solutionVector[i] = this.vectorB[indexVectorB] || 0
+      if (indexVectorB !== -1) solutionVector[i] = this.vectorB[indexVectorB]
+      else solutionVector[i] = 0
     }
     console.log('Optimum Solution : ', solutionVector)
-    // let coefficients = new Float64Array(this.nbVars + this.nbVarEcart)
-    let coefficients = new Float64Array(this.nbVars)
+    let coefficients = new Float64Array(this.nbVars + this.nbVarEcart)
     if (this.optimizationType === 'minimize') {
       for (let i = 0; i < this.nbVars; i++) coefficients[i] = - this.vars[i].coeff
     }
@@ -390,17 +267,6 @@ class Model {
     return index
   }
 
-  leavingVarDual = enteringVarIndex => {
-    let tmp = new Float64Array(this.vectorVars.length)
-    for (let i = 0; i < this.vectorVars.length; i++) {
-      if (this.tableau[enteringVarIndex][i] >= 0) tmp[i] = 100000000 // division par 0 ne nous intéresse pas
-      else tmp[i] = this.vectorVars[i] / this.tableau[enteringVarIndex][i]
-    }
-    console.log(tmp)
-    let index = this.argMin(tmp)
-    return index
-  }
-
   argMax = vector => {
     let indexMax = 0
     let valeurMax = 0 // TODO: Voir si 0 ou - infini à utiliser
@@ -415,7 +281,7 @@ class Model {
 
   argMin = vector => {
     let indexMin = 0
-    let valeurMin = 100000000 // TODO: Voir si 0 ou + infini à utiliser
+    let valeurMin = 100000 // TODO: Voir si 0 ou + infini à utiliser
     for (let i = 0; i < vector.length; i++) {
       if (vector[i] < valeurMin && vector[i] >= 0) { // TODO: voir eventuellement >= -epsilon pour gérer imprécision float 64
         indexMin = i
@@ -424,17 +290,8 @@ class Model {
     }
     return indexMin
   }
-  argMinDual = vector => {
-    let indexMin = 0
-    let valeurMin = 100000000 // TODO: Voir si 0 ou + infini à utiliser
-    for (let i = 0; i < vector.length; i++) {
-      if (vector[i] < valeurMin) { // TODO: voir eventuellement >= -epsilon pour gérer imprécision float 64
-        indexMin = i
-        valeurMin = vector[i]
-      }
-    }
-    return indexMin
-  }
+
+
 
   copyTableau = () => {
     let arr = []
@@ -625,35 +482,33 @@ let m = new Model()
 // })
 
 
-m.addVars({
-  coeffs: [2, 1],
-  types: ['int', 'real']
-})
-
-m.addConstraints({
-  equations: [
-    [1, 1],
-    [-1, 1],
-    [6, 2]
-  ],
-  constraints: ['inf', 'inf', 'inf'],
-  Bs: [5, 0, 21]
-})
-
 // m.addVars({
-//   coeffs: [1, 2],
-//   types: [ 'int']
+//   coeffs: [-2, -1]
 // })
 //
 // m.addConstraints({
 //   equations: [
-//     [-1, 1],
 //     [1, 1],
-//     [2, -1]
+//     [-1, 1],
+//     [6, 2]
 //   ],
 //   constraints: ['inf', 'inf', 'inf'],
-//   Bs: [2, 5, 4]
+//   Bs: [5, 0, 21]
 // })
+
+m.addVars({
+  coeffs: [1, 2]
+})
+
+m.addConstraints({
+  equations: [
+    [-1, 1],
+    [1, 1],
+    [2, -1]
+  ],
+  constraints: ['inf', 'inf', 'inf'],
+  Bs: [2, 5, 4]
+})
 
 /////////////////////////////////////////
 m.compile('maximize')
