@@ -228,9 +228,10 @@ class Model {
       // console.log('vectorBase : ', this.vectorBase)
       // console.table(this.tableau)
 
-      this.computeObjectiveValue()
+      // this.computeObjectiveValue()
     }
-
+    console.log('FIN RELAXATION')
+    this.computeObjectiveValue()
 
     //////////////////////////////
     // Gomory mixed integer cuts :
@@ -301,12 +302,24 @@ class Model {
 // pour les variables donnees au début, virer chiffres après virgule en faisant x10.. /10
   checkInterger = () => {
     for (let i = 0; i < this.vars.length; i++) {
+      console.log(this.vars.length)
+      console.log(i)
+      console.log(this.vectorB)
+      console.log(this.vectorBase)
         // Pour chaque variable, si elle est entière on regarde si la valeur trouvée est bien entière
       let rowNotInteger = this.vectorBase.findIndex( x => x === i)
-      let fractionalX = this.vectorB[rowNotInteger] - Math.floor(this.vectorB[rowNotInteger])
-      if (fractionalX !== 0 && this.vars[i].type === 'int') {
-        return rowNotInteger
+      console.log(rowNotInteger)
+      if (rowNotInteger !== -1) {
+        let fractionalX = this.vectorB[rowNotInteger] - Math.floor(this.vectorB[rowNotInteger])
+        console.log(fractionalX)
+        let espilon = 0.000001
+        // && Math.abs(fractionalX) < espilon
+        if (fractionalX !== 0 && this.vars[i].type === 'int' && Math.abs(fractionalX) >= espilon) {
+          console.log('OUIIIIIIIIIIIIIIIIIII')
+          return rowNotInteger
+        }
       }
+
     }
     return -1
   }
@@ -792,7 +805,7 @@ const init = () => {
   // loop()
 
   // // VERSION DIAGONALE PENALISEE
-  let nbCities = 30
+  let nbCities = 10
   let tsp = new TSP(nbCities)
 
   let vars = new Array()
@@ -802,7 +815,6 @@ const init = () => {
       else vars.push(100000000)
     }
   }
-
   // Symétrique tsp
   let constraintsEquations = new Array(nbCities)
   for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
@@ -815,49 +827,36 @@ const init = () => {
     constraintsEquations[i] = constraint
   }
 
-  // Asymétrique tsp
-  // let constraintsEquations = new Array(nbCities*2)
-  // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
-  //   let constraint = new Array(nbCities * nbCities).fill(0)
-  //   // Somme à 1 en Ligne
-  //   for (let a = 0; a < nbCities; a++) constraint[i*nbCities + a] = 1
-  //   constraintsEquations[i] = constraint
-  // }
-  // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
-  //   let constraint = new Array(nbCities * nbCities).fill(0)
-  //   // Somme à 1 en Colonne
-  //   for (let a = 0; a < nbCities; a++) constraint[a*nbCities + i] = 1
-  //   constraintsEquations[i + nbCities] = constraint
-  // }
-
   // Contraintes var inférieur à 1
   for (let i = 0; i < nbCities * nbCities; i++) {
-    let constraint = new Array(nbCities * nbCities).fill(0)
+    let constraint = new Array(nbCities * nbCities + nbCities).fill(0)
     constraint[i] = 1
     constraintsEquations.push(constraint)
   }
 
+
   m.addVars({
     coeffs: vars,
-    types: new Array(nbCities * (nbCities)).fill('int')
+    types: [...new Array(nbCities * nbCities).fill('int')]
   })
-  // TODO: Voir check integer comme dans fichier save3.js
+
   m.addConstraints({
-    equations: constraintsEquations,
+    equations: constraintsEquations, // TODO: voir si inf à 1 toujours utile par la suite ?
     constraints: [...new Array(nbCities).fill('equal'), ...new Array(nbCities * nbCities).fill('inf')],
-    Bs:          [...new Array(nbCities).fill(2)      , ...new Array(nbCities * nbCities).fill(1)]
+    Bs:          [...new Array(nbCities).fill(2)      , ...new Array(nbCities * nbCities).fill(1)    ]
   })
 
   m.compile('minimize')
   m.optimize()
 
   let result = m.solutionVector
+  console.log(result)
   let resultReshaped = new Array(nbCities)
   for (let i = 0; i < nbCities; i++) resultReshaped[i] = []
-  for (let i = 0; i < result.length; i++) {
+  for (let i = 0; i < nbCities; i++) {
     resultReshaped[Math.floor(i/nbCities)].push(result[i])
   }
-
+  console.log(vars)
   console.log(constraintsEquations)
   console.log(result)
   console.log(resultReshaped)
@@ -893,3 +892,205 @@ const draw = (tsp, result, nbCities) => {
 }
 
 window.addEventListener('load', init)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//
+// ////////////////////////////////////
+// // VERSION SANS DIAGONALE
+// // let nbCities = 5
+// // let tsp = new TSP(nbCities)
+// //
+// // let vars = new Array()
+// // for (let i = 0; i < nbCities; i++) {
+// //   for (let j = 0; j < nbCities; j++) {
+// //     if (i !== j) vars.push(tsp.matrixDistances[i][j])
+// //   }
+// // }
+// //
+// // let constraintsEquations = new Array(nbCities)
+// // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
+// //   let constraint = new Array(nbCities * (nbCities-1)).fill(0)
+// //   for (let a = i*(nbCities-1); a < (i+1)*(nbCities-1); a++) {
+// //     constraint[a] = 1
+// //   }
+// //   constraintsEquations[i] = constraint
+// // }
+// // for (let i = 0; i < nbCities * (nbCities-1); i++) {
+// //   let constraint = new Array(nbCities * (nbCities-1)).fill(0)
+// //   constraint[i] = 1
+// //   constraintsEquations.push(constraint)
+// // }
+// //
+// // m.addVars({
+// //   coeffs: vars,
+// //   types: new Array(nbCities * (nbCities-1)).fill('int')
+// // })
+// //
+// // m.addConstraints({
+// //   equations: constraintsEquations,
+// //   constraints: [...new Array(nbCities).fill('equal'), ...new Array(nbCities * (nbCities-1)).fill('inf')],
+// //   Bs: [...new Array(nbCities).fill(2), ...new Array(nbCities * (nbCities-1)).fill(1)]
+// // })
+// //
+// // m.compile('minimize')
+// // m.optimize()
+// //
+// // let result = m.solutionVector
+// // let resultReshaped = new Array(nbCities)
+// // for (let i = 0; i < nbCities; i++) resultReshaped[i] = []
+// // for (let i = 0; i < result.length; i++) {
+// //   resultReshaped[Math.floor(i/(nbCities-1))].push(result[i])
+// // }
+// // for (let i = 0; i < nbCities; i++) {
+// //   resultReshaped[i].splice(i, 0, 0)
+// // }
+// // console.log(result)
+// // console.log(resultReshaped)
+// // loop()
+//
+// // // VERSION DIAGONALE PENALISEE
+// let nbCities = 30
+// let tsp = new TSP(nbCities)
+//
+// let vars = new Array()
+// for (let i = 0; i < nbCities; i++) {
+//   for (let j = 0; j < nbCities; j++) {
+//     if (i !== j) vars.push(tsp.matrixDistances[i][j])
+//     else vars.push(100000000)
+//   }
+// }
+// vars = [...vars, ...new Array(nbCities).fill(0)] // Ajout vars Ui pour cycle
+// // Symétrique tsp
+// let constraintsEquations = new Array(nbCities)
+// for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
+//   let constraint = new Array(nbCities * nbCities).fill(0)
+//   // Somme à 1 en ligne
+//   for (let a = i*nbCities; a < (i+1)*nbCities; a++) constraint[a] = 1
+//   // Somme à 1 en colonne
+//   for (let a = 0; a < nbCities; a++) constraint[a*nbCities + i] = 1
+//
+//   constraintsEquations[i] = [...constraint, ...new Array(nbCities).fill(0)] // Vars de cycle à 0
+// }
+//
+//
+//
+// // Asymétrique tsp
+// // let constraintsEquations = new Array(nbCities*2)
+// // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
+// //   let constraint = new Array(nbCities * nbCities).fill(0)
+// //   // Somme à 1 en Ligne
+// //   for (let a = 0; a < nbCities; a++) constraint[i*nbCities + a] = 1
+// //   constraintsEquations[i] = constraint
+// // }
+// // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
+// //   let constraint = new Array(nbCities * nbCities).fill(0)
+// //   // Somme à 1 en Colonne
+// //   for (let a = 0; a < nbCities; a++) constraint[a*nbCities + i] = 1
+// //   constraintsEquations[i + nbCities] = constraint
+// // }
+//
+// // Contraintes var inférieur à 1
+// for (let i = 0; i < nbCities * nbCities; i++) {
+//   let constraint = new Array(nbCities * nbCities + nbCities).fill(0)
+//   constraint[i] = 1
+//   constraintsEquations.push(constraint)
+// }
+//
+// for (let i = 1; i < nbCities; i++) {
+//   let constraint = new Array(nbCities * nbCities + nbCities).fill(0)
+//   constraint[i + nbCities * nbCities] = 1 // <= n-1
+//   constraintsEquations.push(constraint)
+// }
+// for (let i = 1; i < nbCities; i++) {
+//   for (let j = 1; j < nbCities; j++) {
+//     if (i !== j) {
+//       let constraint = new Array(nbCities * nbCities + nbCities).fill(0)
+//       constraint[i + nbCities * nbCities] = 1
+//       constraint[j + nbCities * nbCities] = -1
+//       constraint[i*nbCities + j-1] = nbCities
+//       constraintsEquations.push(constraint)
+//     }
+//   }
+// }
+// let constraint = new Array(nbCities * nbCities + nbCities).fill(0)
+// constraint[nbCities*nbCities] = 1
+// constraintsEquations.push(constraint)
+//
+// m.addVars({
+//   coeffs: vars,
+//   types: [...new Array(nbCities * nbCities).fill('int'), ... new Array(nbCities).fill('real')]
+// })
+//
+// m.addConstraints({
+//   equations: constraintsEquations, // TODO: voir si inf à 1 toujours utile par la suite ?
+//   constraints: [...new Array(nbCities).fill('equal'), ...new Array(nbCities * nbCities).fill('inf'), ...new Array(nbCities-1).fill('inf')     , ...new Array((nbCities-1)*(nbCities-2)).fill('inf'),      ...['equal']],
+//   Bs:          [...new Array(nbCities).fill(2)      , ...new Array(nbCities * nbCities).fill(1)    , ...new Array(nbCities-1).fill(nbCities-1), ...new Array((nbCities-1)*(nbCities-2)).fill(nbCities-1), ...[1]      ]
+// })
+//
+// m.compile('minimize')
+// m.optimize()
+//
+// let result = m.solutionVector
+// console.log(result)
+// let resultReshaped = new Array(nbCities)
+// for (let i = 0; i < nbCities; i++) resultReshaped[i] = []
+// for (let i = 0; i < nbCities; i++) {
+//   resultReshaped[Math.floor(i/nbCities)].push(result[i])
+// }
+// console.log(vars)
+// console.log(constraintsEquations)
+// console.log(result)
+// console.log(resultReshaped)
+// // loop()
+// draw(tsp, resultReshaped, nbCities)
+// }
+//
+// // const loop = () => {
+// //   requestAnimationFrame(loop)
+// // }
+//
+// const draw = (tsp, result, nbCities) => {
+// ctx.clearRect(0, 0, canvas.width, canvas.height)
+// ctx.fillStyle = "#000000"
+//
+// for (let i = 0; i < tsp.cities.length; i++) { // Dessine les points
+//   ctx.beginPath()
+//   ctx.arc(tsp.cities[i].x + 50, tsp.cities[i].y + 50, 5, 0, 2*Math.PI)
+//   ctx.fill()
+// }
+//
+// for (let i = 0; i < nbCities; i++) {
+//   for (let j = 0; j < nbCities; j++) {
+//     if (result[i][j] === 1) {
+//       ctx.beginPath()
+//       ctx.moveTo(tsp.cities[i].x + 50, tsp.cities[i].y + 50) // Dessine le chemin entre les points
+//       ctx.lineTo(tsp.cities[j].x + 50, tsp.cities[j].y + 50)
+//       ctx.stroke()
+//     }
+//   }
+//
+// }
+// }
+//
+// window.addEventListener('load', init)
