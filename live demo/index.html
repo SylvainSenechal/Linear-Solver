@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <title> Online Linear Solver</title>
+
+  <meta charset="utf-8">
+
+  <link rel="stylesheet" href="style.css">
+  <script defer src="script.js"></script>
+</head>
+
+<body>
+  <div class="container">
+
+    <div class="header">
+    </div>
+
+    <div class="objectiveFunction">
+      <div id="optimizationType">
+        <p id="max"> max
+        <p id="min"> min
+      </div>
+      <code> Z =  <input class="objectiveValue" type="number" placeholder="0"><var>x1</var> + <input class="objectiveValue" type="number" placeholder="0"><var>x2</var></code>
+    </div>
+
+    <div class="equations">
+
+      <div class="newEquation">
+        <div class="addRemoveEquation">
+          <button id="buttonAddEquation" onclick="addEquation(this)"> add </button>
+        </div>
+        <div>
+          <code id="newEquation"> <input class="constraint" type="number" placeholder="0"><var>x1</var> + <input class="constraint" type="number" placeholder="0"><var>x2</var> < <input type="number" placeholder="0"> </code>
+        </div>
+      </div>
+
+      <div class="listEquations">
+
+        <div class="equation">
+          <div class="addRemoveEquation">
+            <button id="buttonRemoveEquation" onclick="removeEquation(this)"> rmv </button>
+          </div>
+          <div class="equationCode">
+            <code> <input class="constraint" type="number" placeholder="0"><var>x1</var> + <input class="constraint" type="number" placeholder="5"><var>x2</var> < <input class="secondMember" type="number" placeholder="8"> </code>
+          </div>
+        </div>
+
+        <div class="equation">
+          <div class="addRemoveEquation">
+            <button id="buttonRemoveEquation" onclick="removeEquation(this)"> rmv </button>
+          </div>
+          <div class="equationCode">
+            <code> <input class="constraint" type="number" placeholder="0"><var>x1</var> + <input class="constraint" type="number" placeholder="5"><var>x2</var> < <input class="secondMember" type="number" placeholder="8"> </code>
+          </div>
+        </div>
+
+        <div class="equation">
+          <div class="addRemoveEquation">
+            <button id="buttonRemoveEquation" onclick="removeEquation(this)"> rmv </button>
+          </div>
+          <div class="equationCode">
+            <code> <input class="constraint" type="number" placeholder="0"><var>x1</var> + <input class="constraint" type="number" placeholder="5"><var>x2</var> < <input class="secondMember" type="number" placeholder="8"> </code>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="solvedEquations">
+    </div>
+
+    <div class="footer">
+    </div>
+  </div>
+</body>
+
+</html>
+
+<!-- <code> <input type="number" placeholder="0"><var>x1</var> + <input type="number" placeholder="5"><var>x2</var> &#8804 <input type="number" placeholder="8"> </code> -->

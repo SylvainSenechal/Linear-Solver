@@ -93,18 +93,11 @@ class Model {
     if (optimizationType !== 'minimize' && optimizationType !== 'maximize') {
       console.warn(`Please pick between \'maximize\' and \'minimize\', not \'${optimizationType}\'`)
       return
-    }
-    else this.optimizationType = optimizationType
+    } else this.optimizationType = optimizationType
 
     this.countNbVarEcart()
     this.countNbVarArtifical()
-    console.log(this.nbVars)
-    console.log(this.nbVarEcart)
-    console.log(this.nbVarArtificials)
-    console.log('///')
-    console.log(this.vars)
-    console.log(this.varsEcart)
-    console.log(this.varsArtificial)
+
 
     let nbEcart = 0
     let nbArtif = 0
@@ -146,10 +139,9 @@ class Model {
       for (let i = 0; i < this.nbVars; i++) this.vars[i].coeff = - this.vars[i].coeff
       this.infinity = - this.infinity
     }
-    console.log('vectorVars : ', this.vectorVars)
 
     for (let i = 0; i < this.nbVars; i++)           this.vectorVars[i] = this.vars[i].coeff
-    console.log('vectorVars : ', this.vectorVars)
+
     // TODO: inutile ? cf https://www.iutbayonne.univ-pau.fr/~grau/2A/RO/chapitre4.html
     // for (let i = 0; i < this.nbVarArtificials; i++) this.vectorVars[this.nbVars + this.nbVarEcart + i] = this.infinity // Remplacer par infinity ?
 
@@ -180,7 +172,6 @@ class Model {
         nbEcart++
       }
     }
-    console.log('vectorVars : ', this.vectorVars)
 
     // Réécriture de la fonction objective en fonction des variable artificelles :
     let sign = this.optimizationType === 'maximize' ? - 1 : 1
@@ -198,15 +189,19 @@ class Model {
   optimize = () => {
     let nbIteration = 0
     console.log('STARTING OPTIMIZING')
-    console.log( this.vectorB )
-    console.log( this.vectorVars )
-    console.log( this.vectorBase )
-    console.table( this.tableau )
+    console.log('nbVars : ', this.nbVars)
+    console.log('nbEcarts : ', this.nbVarEcart)
+    console.log('nbArtifs : ', this.nbVarArtificials)
+    console.log('vectorB : ', this.vectorB)
+    console.log('vectorVars : ', this.vectorVars)
+    console.log('vectorBase : ', this.vectorBase)
+    console.table(this.tableau)
     while (this.vectorVars[this.argMax(this.vectorVars)] > 0 && nbIteration < this.maxIteration) {
       nbIteration++
       let enteringVarIndex = this.argMax(this.vectorVars)
       let leavingVarIndex = this.leavingVar(enteringVarIndex)
-
+      console.log('entering : ', enteringVarIndex)
+      console.log('leaving : ', leavingVarIndex)
       this.vectorBase[leavingVarIndex] = enteringVarIndex
 
       let pivot = this.tableau[leavingVarIndex][enteringVarIndex]
@@ -228,10 +223,10 @@ class Model {
         }
       }
       console.log('///// NEW ITERATION RESULT :')
-      // console.log('vectorb : ', this.vectorB)
+      console.log('vectorb : ', this.vectorB)
       console.log('vectorVars : ', this.vectorVars)
-      // console.log('vectorBase : ', this.vectorBase)
-      // console.table(this.tableau)
+      console.log('vectorBase : ', this.vectorBase)
+      console.table(this.tableau)
 
       this.computeObjectiveValue()
     }
@@ -245,72 +240,66 @@ class Model {
     // let row = checkinterger, if a !== -1, refaire a la fin du while
     let rowNotInteger = this.checkInterger()
     let nbIterations = 0
-    while (rowNotInteger !== -1 && nbIterations < 200) { // TODO: mettre une variable
+    while (rowNotInteger !== -1 && nbIterations < 50) { // TODO: mettre une variable
+
       nbIterations++
       console.log(nbIterations)
-      // for (let i = 0; i < this.vars.length; i++) {
-          // Pour chaque variable, si elle est entière on regarde si la valeur trouvée est bien entière
-        let fractionalX = this.vectorB[rowNotInteger] - Math.floor(this.vectorB[rowNotInteger])
-        // if (fractionalX !== 0 && this.vars[i].type === 'int') {
-          console.log("new cut")
-          this.nbGMIcuts++
-          this.vectorBase.push(this.nbVars + this.nbVarEcart + this.nbVarArtificials + this.nbGMIcuts)
-          this.vectorB.push(-fractionalX)
-          this.vectorVars.push(0)
+      let fractionalX = this.vectorB[rowNotInteger] - Math.floor(this.vectorB[rowNotInteger])
+      this.nbGMIcuts++
+      this.vectorBase.push(this.nbVars + this.nbVarEcart + this.nbVarArtificials + this.nbGMIcuts)
+      this.vectorB.push(-fractionalX)
+      this.vectorVars.push(0)
 
-          // Ajout dernière colonne au tableau :
-          this.tableau.map(row => row.push(0))
-          // Ajout dernière ligne au tableau :
-          this.tableau.push(new Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials + this.nbGMIcuts).fill(0))
-          // La derniere colonne de la ligne ajoutée est hors base :
-          this.tableau[this.tableau.length - 1][this.tableau[0].length - 1] = 1
-          // Calcul du tableau de la ligne ajoutée selon GMI cut
-          for (let i = 0; i < this.tableau[0].length - 1; i++) {
-            // let fractionalXi = this.tableau[rowNotInteger][i] - Math.floor(this.tableau[rowNotInteger][i])
-            let fractionalXi = this.tableau[rowNotInteger][i] >= 0 ?
-            this.tableau[rowNotInteger][i] - Math.floor(this.tableau[rowNotInteger][i]) :
-            - this.tableau[rowNotInteger][i] - Math.floor(-this.tableau[rowNotInteger][i])
-            // if (fractionalXi <= fractionalX) {
-            if ( fractionalXi === 0) {
-              this.tableau[this.tableau.length - 1][i] = 0
-            }
-            else if (this.tableau[rowNotInteger][i] >= 0) {
-              this.tableau[this.tableau.length - 1][i] = - fractionalXi
+      // Ajout dernière colonne au tableau :
+      this.tableau.map(row => row.push(0))
+      // Ajout dernière ligne au tableau :
+      this.tableau.push(new Array(this.nbVars + this.nbVarEcart + this.nbVarArtificials + this.nbGMIcuts).fill(0))
+      // La derniere colonne de la ligne ajoutée est hors base :
+      this.tableau[this.tableau.length - 1][this.tableau[0].length - 1] = 1
+      // Calcul du tableau de la ligne ajoutée selon GMI cut
+      for (let i = 0; i < this.tableau[0].length - 1; i++) {
+        // let fractionalXi = this.tableau[rowNotInteger][i] - Math.floor(this.tableau[rowNotInteger][i])
+        let fractionalXi = this.tableau[rowNotInteger][i] >= 0 ?
+        this.tableau[rowNotInteger][i] - Math.floor(this.tableau[rowNotInteger][i]) :
+        - this.tableau[rowNotInteger][i] - Math.floor(-this.tableau[rowNotInteger][i])
+        // if (fractionalXi <= fractionalX) {
+        if ( fractionalXi === 0) {
+          this.tableau[this.tableau.length - 1][i] = 0
+        }
+        else if (this.tableau[rowNotInteger][i] >= 0) {
+          this.tableau[this.tableau.length - 1][i] = - fractionalXi
 
-            } else {
-              // TODO: check car rentre pas dedans et on se retrouve avec -0.5 au lieu de -1.5
-              this.tableau[this.tableau.length - 1][i] = - (fractionalX / (fractionalX - 1)) * this.tableau[rowNotInteger][i]
-              // todo fractionalXi === 0 ? 0 : a rajouter peut être juste au dessus
-            }
-          }
-        // }
-      // }
+        } else {
+          // TODO: check car rentre pas dedans et on se retrouve avec -0.5 au lieu de -1.5
+          this.tableau[this.tableau.length - 1][i] = - (fractionalX / (fractionalX - 1)) * this.tableau[rowNotInteger][i]
+          // todo fractionalXi === 0 ? 0 : a rajouter peut être juste au dessus
+        }
+      }
+      // console.log('///// NEW CUT RESULT :')
       // console.log('vectorb : ', this.vectorB)
       // console.log('vectorVars : ', this.vectorVars)
       // console.log('vectorBase : ', this.vectorBase)
       // console.table(this.tableau)
+      this.tableau = this.tableau.map(row => row.map(val => Math.round(val * 100000) / 100000))
+      this.vectorVars = this.vectorVars.map(val => Math.round(val * 100000) / 100000)
+      this.vectorB = this.vectorB.map(val => Math.round(val * 100000) / 100000)
       this.dualSimplex()
+
       rowNotInteger = this.checkInterger()
     }
-
-
-    console.log('vectorb : ', this.vectorB)
-    console.log('vectorVars : ', this.vectorVars)
-    console.log('vectorBase : ', this.vectorBase)
-    // console.table(this.tableau)
-
     this.computeObjectiveValue()
-
   }
 // TODO: a arrondir les trucs pénible en cours de route
 // pour les variables donnees au début, virer chiffres après virgule en faisant x10.. /10
   checkInterger = () => {
     for (let i = 0; i < this.vars.length; i++) {
-        // Pour chaque variable, si elle est entière on regarde si la valeur trouvée est bien entière
+      // Pour chaque variable, si elle est de type integer, on regarde si la valeur trouvée est bien entière
       let rowNotInteger = this.vectorBase.findIndex( x => x === i)
-      let fractionalX = this.vectorB[rowNotInteger] - Math.floor(this.vectorB[rowNotInteger])
-      if (fractionalX !== 0 && this.vars[i].type === 'int') {
-        return rowNotInteger
+      if (rowNotInteger !== -1) {
+        let fractionalX = this.vectorB[rowNotInteger] - Math.floor(this.vectorB[rowNotInteger])
+        if (fractionalX !== 0 && this.vars[i].type === 'int') {
+          return rowNotInteger
+        }
       }
     }
     return -1
@@ -318,6 +307,8 @@ class Model {
 
   dualSimplex = () => {
     while (this.vectorB[this.argMinDual(this.vectorB)] < 0) { // TODO: add max iteration ?
+      console.log('DUAL SIMPLEX ITERATION')
+
       // console.log(this.vectorB[this.argMinDual(this.vectorB)])
       let leavingVarIndex = this.argMinDual(this.vectorB)
       let enteringVarIndex = this.leavingVarDual(leavingVarIndex)
@@ -344,13 +335,16 @@ class Model {
           else this.tableau[i][j] = copyTableau[i][j] - (copyTableau[i][enteringVarIndex] * copyTableau[leavingVarIndex][j]) / pivot
         }
       }
-      // console.log('///// NEW ITERATION DUAL RESULT :')
+      this.tableau = this.tableau.map(row => row.map(val => Math.round(val * 1000) / 1000))
+      this.vectorVars = this.vectorVars.map(val => Math.round(val * 1000) / 1000)
+      this.vectorB = this.vectorB.map(val => Math.round(val * 1000) / 1000)
+      console.log('///// NEW ITERATION DUAL RESULT :')
       // console.log('vectorb : ', this.vectorB)
-      // console.log('vectorVars : ', this.vectorVars)
+      console.log('vectorVars : ', this.vectorVars)
       // console.log('vectorBase : ', this.vectorBase)
       // console.table(this.tableau)
 
-      this.computeObjectiveValue()
+      // this.computeObjectiveValue()
     }
   }
 
@@ -366,7 +360,8 @@ class Model {
       let indexVectorB = this.vectorBase.findIndex( x => x === i)
       solutionVector[i] = this.vectorB[indexVectorB] || 0
     }
-    console.log('Optimum Solution : ', solutionVector)
+    this.solutionVector = solutionVector.map(value => Math.round(value * 100000) / 100000)
+    console.log('Optimum Solution : ', this.solutionVector)
     // let coefficients = new Float64Array(this.nbVars + this.nbVarEcart)
     let coefficients = new Float64Array(this.nbVars)
     if (this.optimizationType === 'minimize') {
@@ -375,12 +370,12 @@ class Model {
     else {
       for (let i = 0; i < this.nbVars; i++) coefficients[i] = this.vars[i].coeff
     }
-    this.solutionVector = solutionVector
-    let optimum = this.dot(solutionVector, coefficients)
+    let optimum = this.dot(this.solutionVector, coefficients)
     console.log('Optimum value of Objective function : ', optimum)
   }
 
   dot = (vector1, vector2) => {
+    console.log(vector1)
     let result = 0
     for (let i = 0; i < vector1.length; i++) {
       result += vector1[i] * vector2[i]
@@ -394,8 +389,9 @@ class Model {
       if (this.tableau[i][enteringVarIndex] === 0 || this.tableau[i][enteringVarIndex] < 0) tmp[i] = -1 // Les négatifs ne nous intéressent pas
       else tmp[i] = this.vectorB[i] / this.tableau[i][enteringVarIndex]
     }
-    // console.log(tmp)
+    console.log(tmp)
     let index = this.argMin(tmp)
+    console.log(index)
     return index
   }
 
@@ -457,249 +453,6 @@ class Model {
   }
 }
 
-
-
-let m = new Model()
-
-// exemple 1
-// m.addVar({coeff: 1})
-// m.addVar({coeff: 2})
-// m.addVars({
-  // coeffs: [1, 2],
-// })
-
-// m.addConstraint({equation: [1, 3], constraint: 'inf', b: 21})
-// m.addConstraint({equation: [-1, 3], constraint: 'inf', b: 18})
-// m.addConstraint({equation: [1, -1], constraint: 'inf', b: 5})
-// m.addConstraints({
-//   equations: [
-//     [1, 3],
-//     [-1, 3],
-//     [1, -1]
-//   ],
-//   constraints: ['inf', 'inf', 'inf'],
-//   Bs: [21, 18, 5]
-// })
-
-
-// exemple 2
-// m.addVar({coeff: 1})
-// m.addVar({coeff: -3})
-// m.addConstraint({equation: [3, -2], constraint: 'inf', b: 7})
-// m.addConstraint({equation: [-1, 4], constraint: 'inf', b: 9})
-// m.addConstraint({equation: [-2, 3], constraint: 'inf', b: 6})
-
-// Exemple 4
-// m.addVar({coeff: 1})
-// m.addVar({coeff: 2})
-// m.addConstraint({equation: [1, 1], constraint: 'inf', b: 12})
-// m.addConstraint({equation: [3, -1], constraint: 'sup', b: 6})
-// m.addConstraint({equation: [-1, 4], constraint: 'sup', b: 8})
-// m.addConstraint({equation: [0, 1], constraint: 'inf', b: 6})
-
-// Exemple 5 non borné
-// m.addVar({coeff: 1})
-// m.addVar({coeff: 2})
-// m.addConstraint({equation: [3, -2], constraint: 'sup', b: 6})
-// m.addConstraint({equation: [-1, 4], constraint: 'sup', b: 8})
-
-// Exemple 6 placements
-// for ( let i = 0; i < 7 ; i++ ) m.addVar({coeff: 1.05})
-// for ( let i = 0; i < 6 ; i++ ) m.addVar({coeff: 1.12})
-// for ( let i = 0; i < 5 ; i++ ) m.addVar({coeff: 1.19})
-//
-// //1
-// m.addConstraint({equation: [1,0,0,0,0,0,0, 1,0,0,0,0,0, 1,0,0,0,0], constraint: 'inf', b: 1000})
-// // m.addConstraint({equation: [1,0,0,0,0,0,0, 1,0,0,0,0,0, 1,0,0,0,0], constraint: 'sup', b: 1000})
-// //2
-// m.addConstraint({equation: [-1,1,0,0,0,0,0, -1,1,0,0,0,0, -1,1,0,0,0], constraint: 'inf', b: 0})
-// // m.addConstraint({equation: [1,-1,0,0,0,0,0, 1,-1,0,0,0,0, 1,-1,0,0,0], constraint: 'sup', b: 0})
-// //3
-// m.addConstraint({equation: [0,-1,1,0,0,0,0, 0,-1,1,0,0,0, 0,-1,1,0,0], constraint: 'inf', b: 0})
-// // m.addConstraint({equation: [0,1,-1,0,0,0,0, 0,1,-1,0,0,0, 0,1,-1,0,0], constraint: 'sup', b: 0})
-// //4
-// m.addConstraint({equation: [0,0,-1,1,0,0,0, 0,0,-1,1,0,0, 0,0,-1,1,0], constraint: 'inf', b: 0})
-// // m.addConstraint({equation: [0,0,1,-1,0,0,0, 0,0,1,-1,0,0, 0,0,1,-1,0], constraint: 'sup', b: 0})
-// //5
-// m.addConstraint({equation: [0,0,0,-1,1,0,0, 0,0,0,-1,1,0, 0,0,0,-1,1], constraint: 'inf', b: 0})
-// // m.addConstraint({equation: [0,0,0,1,-1,0,0, 0,0,0,1,-1,0, 0,0,0,1,-1], constraint: 'sup', b: 0})
-// //6
-// m.addConstraint({equation: [0,0,0,0,-1,1,0, 0,0,0,0,-1,1, 0,0,0,0,-1], constraint: 'inf', b: 0})
-// // m.addConstraint({equation: [0,0,0,0,1,-1,0, 0,0,0,0,1,-1, 0,0,0,0,1], constraint: 'sup', b: 0})
-// //7
-// m.addConstraint({equation: [0,0,0,0,0,-1,1, 0,0,0,0,0,-1, 0,0,0,0,0], constraint: 'inf', b: 0})
-// // m.addConstraint({equation: [0,0,0,0,0,1,-1, 0,0,0,0,0,1, 0,0,0,0,0], constraint: 'sup', b: 0})
-// m.addVar({coeff: 1.05})
-// m.addVar({coeff: 1.05})
-// m.addVar({coeff: 1.05})
-// m.addVar({coeff: 1.12})
-// m.addVar({coeff: 1.12})
-// m.addConstraint({equation: [1    ,0    ,0 ,1    ,0], constraint: 'inf', b: 1000})
-// m.addConstraint({equation: [-1.05,1    ,0 ,0    ,1], constraint: 'inf', b: 0})
-// m.addConstraint({equation: [0    ,-1.05,1 ,-1.12,0], constraint: 'inf', b: 0})
-
-// Exemple 7 EXO 12 A FAIRE BASE CANONIQUE NON REALISABLE
-// m.addVar({coeff: 56})
-// m.addVar({coeff: 42})
-// m.addConstraint({equation: [10,11], constraint: 'inf', b: 10700})
-// m.addConstraint({equation: [1,1], constraint: 'sup', b: 1000})
-// m.addConstraint({equation: [1,0], constraint: 'inf', b: 700})
-
-
-// Exemple 1 base canonique non réalisable
-// m.addVars({
-//   coeffs: [1, 2, 3]
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [1, 1, 0],
-//     [2, 2, -1],
-//     [12, 8, -5]
-//   ],
-//   constraints: ['inf', 'equal', 'equal'],
-//   Bs: [5, 6, 32]
-// })
-
-// Exemple 2 base canonique non réalisable
-// m.addVars({
-//   coeffs: [3, 10]
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [5, 6],
-//     [2, 7]
-//   ],
-//   constraints: ['sup', 'sup'],
-//   Bs: [10, 14]
-// })
-
-// m.addVars({
-//   coeffs: [-2, -3, -4]
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [3, 2, 1],
-//     [2, 5, 3]
-//   ],
-//   constraints: ['equal', 'equal'],
-//   Bs: [10, 15]
-// })
-
-
-// TODO:  A VERIFIER VARIABLE NEGATIVE + EQUAL
-// m.addVars({
-//   coeffs: [1, 1]
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [1, 1],
-//     [1, 0]
-//   ],
-//   constraints: ['inf', 'equal'],
-//   Bs: [5, -1]
-// })
-
-
-// INTEGERS
-
-// m.addVars({
-//   coeffs: [1, 2]
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [0, 2],
-//     [1, 1],
-//     [2, 0]
-//   ],
-//   constraints: ['inf', 'inf', 'inf'],
-//   Bs: [7, 7, 11]
-// })
-
-// m.addVars({
-//   coeffs: [3, 4]
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [3, -1],
-//     [3, 11]
-//   ],
-//   constraints: ['inf', 'inf'],
-//   Bs: [12, 66]
-// })
-
-
-// m.addVars({
-//   coeffs: [2, 1],
-//   types: ['int', 'int']
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [1, 1],
-//     [-1, 1],
-//     [6, 2]
-//   ],
-//   constraints: ['inf', 'inf', 'inf'],
-//   Bs: [5, 0, 21]
-// })
-
-
-// m.addVars({
-//   coeffs: [2, 1],
-//   types: ['int', 'int']
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [1, 1],
-//     [-1, 1],
-//     [6, 2]
-//   ],
-//   constraints: ['inf', 'inf', 'inf'],
-//   Bs: [2.9, 0, 21] // A TESTER : NOMBRE A VIRGULE
-// })
-
-
-// m.addVars({
-//   coeffs: [4, 5],
-//   types: ['int', 'int']
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [1, 4],
-//     [3, 2]
-//   ],
-//   constraints: ['sup', 'sup'],
-//   Bs: [5, 7]
-// })
-
-// m.addVars({
-//   coeffs: [5, 6],
-//   types: ['int', 'real']
-// })
-//
-// m.addConstraints({
-//   equations: [
-//     [10, 3],
-//     [2, 3]
-//   ],
-//   constraints: ['inf', 'inf'],
-//   Bs: [52, 18]
-// })
-
-/////////////////////////////////////////
-// m.compile('maximize')
-// // m.compile('minimize')
-// m.optimize()
-// console.log(m)
-
 ////////////////////////
 // TSP
 ////////////////////////
@@ -709,17 +462,21 @@ class TSP {
     this.nbCities = nbCities
     this.width = 1000
     this.height = 1000
-    // this.cities = [
-    //   {x: 100, y: 100},
-    //   {x: 200, y: 200},
-    //   {x: 300, y: 300},
-    //   {x: 400, y: 400},
-    //   {x: 500, y: 500},
-    // ]
-    this.cities = this.createCities()
+    this.cities = [
+      {x: 100, y: 100},
+      {x: 200, y: 150},
+      {x: 300, y: 250},
+      {x: 250, y: 400},
+      {x: 500, y: 250},
+      {x: 600, y: 150},
+      {x: 400, y: 450},
+    ]
+    // this.cities = this.createCities()
     this.matrixDistances = this.computeMatrixDistances()
   }
-  createCities = () => new Array(this.nbCities).fill(0).map(x => ({x: Math.floor(Math.random() * this.width) + 1, y: Math.floor(Math.random() * this.height) + 1}))
+  // createCities = () => new Array(this.nbCities).fill(0).map(x => ({x: Math.floor(Math.random() * this.width) + 1, y: Math.floor(Math.random() * this.height) + 1}))
+  createCities = () => new Array(this.nbCities).fill(0).map(x => ({x: Math.random() * this.width + 1, y: Math.random() * this.height + 1}))
+
   computeMatrixDistances = () => { // TODO: round les distances même si perte de précision pour que ce soit mieux pour le pl ? ou le retirer à voir
     let matrix = new Array(this.nbCities).fill(new Float64Array(this.nbCities))
     matrix = matrix.map( (row, index) => {
@@ -745,122 +502,19 @@ const init = () => {
   width = 1050
   height = 1050
 
-  ////////////////////////////////////
-  // VERSION SANS DIAGONALE
-  // let nbCities = 25
-  // let tsp = new TSP(nbCities)
-  //
-  // let vars = new Array()
-  // for (let i = 0; i < nbCities; i++) {
-  //   for (let j = 0; j < nbCities; j++) {
-  //     if (i !== j) vars.push(tsp.matrixDistances[i][j])
-  //   }
-  // }
-  //
-  // let constraintsEquations = new Array(nbCities)
-  // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / LIGNE de la matrice
-  //   let constraint = new Array(nbCities * (nbCities-1)).fill(0)
-  //   for (let a = i*(nbCities-1); a < (i+1)*(nbCities-1); a++) {
-  //     constraint[a] = 1
-  //   }
-  //   constraintsEquations[i] = constraint
-  // }
-  // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / COLONNE de la matrice
-  //   let constraint = new Array(nbCities * (nbCities-1)).fill(0)
-  //   for (let a = 0; a < nbCities; a++) {
-  //     constraint[a*nbCities + i] = 1
-  //     console.log(a*nbCities+i)
-  //   }
-  //   constraintsEquations.push(constraint)
-  // }
-  // // // let constraintsEquations = new Array(nbCities*2)
-  // // // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
-  // // //   let constraint = new Array(nbCities * nbCities).fill(0)
-  // // //   // Somme à 1 en Ligne
-  // // //   for (let a = 0; a < nbCities; a++) constraint[i*nbCities + a] = 1
-  // // //   constraintsEquations[i] = constraint
-  // // // }
-  // // // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
-  // // //   let constraint = new Array(nbCities * nbCities).fill(0)
-  // // //   // Somme à 1 en Colonne
-  // // //   for (let a = 0; a < nbCities; a++) constraint[a*nbCities + i] = 1
-  // // //   constraintsEquations[i + nbCities] = constraint
-  // // // }
-  //
-  //
-  // // for (let i = 0; i < nbCities * (nbCities-1); i++) {
-  // //   let constraint = new Array(nbCities * (nbCities-1)).fill(0)
-  // //   constraint[i] = 1
-  // //   constraintsEquations.push(constraint)
-  // // }
-  //
-  // m.addVars({
-  //   coeffs: vars,
-  //   types: new Array(nbCities * (nbCities-1)).fill('int')
-  // })
-  //
-  // m.addConstraints({
-  //   equations: constraintsEquations,
-  //   constraints: [...new Array(nbCities*2).fill('equal')],//, ...new Array(nbCities * (nbCities-1)).fill('inf')],
-  //   Bs: [...new Array(nbCities*2).fill(1)]//, ...new Array(nbCities * (nbCities-1)).fill(1)]
-  // })
-  //
-  // m.compile('minimize')
-  // m.optimize()
-  //
-  // let result = m.solutionVector
-  // let resultReshaped = new Array(nbCities)
-  // for (let i = 0; i < nbCities; i++) resultReshaped[i] = []
-  // for (let i = 0; i < result.length; i++) {
-  //   resultReshaped[Math.floor(i/(nbCities-1))].push(result[i])
-  // }
-  // for (let i = 0; i < nbCities; i++) {
-  //   resultReshaped[i].splice(i, 0, 0)
-  // }
-  // console.log(vars)
-  // console.log(constraintsEquations)
-  // console.log(result)
-  // console.log(resultReshaped)
-  // console.log(tsp.matrixDistances)
 
   // VERSION DIAGONALE PENALISEE
-  let nbCities = 25
+  let nbCities = 7
   let tsp = new TSP(nbCities)
 
   let vars = new Array()
   for (let i = 0; i < nbCities; i++) {
     for (let j = 0; j < nbCities; j++) {
       if (i !== j) vars.push(tsp.matrixDistances[i][j])
-      else vars.push(100000)
+      else vars.push(10000)
     }
   }
 
-  // Symétrique tsp
-  // let constraintsEquations = new Array(nbCities)
-  // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
-  //   let constraint = new Array(nbCities * nbCities).fill(0)
-  //   // Somme à 1 en ligne
-  //   for (let a = i*nbCities; a < (i+1)*nbCities; a++) constraint[a] = 1
-  //   // Somme à 1 en colonne
-  //   for (let a = 0; a < nbCities; a++) constraint[a*nbCities + i] = 1
-  //
-  //   constraintsEquations[i] = constraint
-  // }
-
-  // Asymétrique tsp
-  // let constraintsEquations = new Array(nbCities*2)
-  // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
-  //   let constraint = new Array(nbCities * nbCities).fill(0)
-  //   // Somme à 1 en Ligne
-  //   for (let a = 0; a < nbCities; a++) constraint[i*nbCities + a] = 1
-  //   constraintsEquations[i] = constraint
-  // }
-  // for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
-  //   let constraint = new Array(nbCities * nbCities).fill(0)
-  //   // Somme à 1 en Colonne
-  //   for (let a = 0; a < nbCities; a++) constraint[a*nbCities + i] = 1
-  //   constraintsEquations[i + nbCities] = constraint
-  // }
 
   let constraintsEquations = []//new Array(nbCities*2)
   for (let i = 0; i < nbCities; i++) { // Une contrainte pour chaque ville / ligne de la matrice
@@ -882,7 +536,18 @@ const init = () => {
   //   constraint[i] = 1
   //   constraintsEquations.push(constraint)
   // }
-
+  let m = new Model()
+  console.log(constraintsEquations)
+  let arr = new Array(nbCities * nbCities).fill(0)
+  arr[20] = 1
+  arr[23] = 1
+  arr[45] = 1
+  constraintsEquations.push(arr)
+  let arr2 = new Array(nbCities * nbCities).fill(0)
+  arr2[17] = 1
+  arr2[27] = 1
+  arr2[44] = 1
+  constraintsEquations.push(arr2)
   m.addVars({
     coeffs: vars,
     types: new Array(nbCities * (nbCities)).fill('int')
@@ -890,8 +555,8 @@ const init = () => {
   // TODO: Voir check integer comme dans fichier save3.js
   m.addConstraints({
     equations: constraintsEquations,
-    constraints: [...new Array(nbCities*2).fill('equal')],//, ...new Array(nbCities * nbCities).fill('inf')],
-    Bs:          [...new Array(nbCities*2).fill(1)      ]//, ...new Array(nbCities * nbCities).fill(1)]
+    constraints: [...new Array(nbCities*2).fill('equal'), ...['inf', 'inf']],//, ...new Array(nbCities * nbCities).fill('inf')],
+    Bs:          [...new Array(nbCities*2).fill(1), ...[2, 2]      ]//, ...new Array(nbCities * nbCities).fill(1)]
   })
 
   m.compile('minimize')
@@ -929,7 +594,7 @@ const draw = (tsp, resultReshaped, nbCities) => {
 
   for (let i = 0; i < nbCities; i++) {
     for (let j = 0; j < nbCities; j++) {
-      if (resultReshaped[i][j] >= 1) {
+      if (resultReshaped[i][j] >= 0.9) {
         ctx.beginPath()
         ctx.moveTo(tsp.cities[i].x + 50, tsp.cities[i].y + 50) // Dessine le chemin entre les points
         ctx.lineTo(tsp.cities[j].x + 50, tsp.cities[j].y + 50)

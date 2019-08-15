@@ -1,0 +1,158 @@
+* {
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.container {
+  display: grid;
+  width: 100vw;
+  height: 100vh;
+  /* grid-gap: 10px; */
+  grid-template-areas: ' header header header header header header '
+                       ' results results results results results results '
+                       ' . equations equations solvedEquations solvedEquations . '
+                       ' footer footer footer footer footer footer ';
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: 1fr 1fr 7fr 1fr;
+}
+
+.container > div {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  margin: 5px;
+}
+
+/* HEADER */
+.header {
+  grid-area: header;
+}
+
+/* font: 14px/1 'Open Sans', sans-serif;
+color: #333;
+width: 15px;
+background-color: #efefef;
+border: none;
+padding: 3px;
+border-radius: 3px; */
+/* Objective Function */
+.objectiveFunction {
+  grid-area: results;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 5s;
+}
+/* .objectiveFunction:hover {
+  transform: rotate(2deg) translate(100px, 100px);
+} */
+
+#optimizationType {
+  background-color: #efefef;
+  border-radius: 10px;
+  margin: 5px;
+  padding: 5px;
+}
+
+#min:hover, #max:hover {
+  cursor: pointer;
+}
+
+/* Equations */
+.equations {
+  grid-area: equations;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.equations > div {
+  margin: 5px;
+  width: 95%;
+  padding: 3px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+
+  display: flex;
+  align-items: center;
+}
+.listEquations {
+  flex-direction: column;
+}
+.listEquations > div {
+  margin: 3px;
+  width: 100%;
+  padding-bottom: 3px;
+  /* box-shadow: 0 1px 2px rgba(0,0,0,0.1); */
+  border-bottom: solid 1px #d4d4d4;
+
+  display: flex;
+  align-items: center;
+}
+
+.listEquations > div:last-child {
+  border-bottom: unset;
+}
+
+button {
+  all: unset;
+  border-radius: 10px;
+  /* border:1px solid #18ab29; */
+  cursor: pointer;
+  color: #ffffff;
+  font-size: 17px;
+  padding: 1px 10px;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+}
+#buttonAddEquation:hover {
+	background-color:#5cbf2a;
+}
+#buttonAddEquation:active {
+  transform: translateY(1px);
+}
+#buttonAddEquation {
+  width: 25px;
+  background-color: #44c767;
+}
+
+#buttonRemoveEquation:hover {
+  background-color: #aa0000;
+}
+#buttonRemoveEquation:active {
+  transform: translateY(1px);
+}
+#buttonRemoveEquation {
+  width: 25px;
+  background-color: #ff0000;
+}
+
+/* TODO: voir difference sans removeEquation */
+.addRemoveEquation {
+  margin-right: 10px;
+  padding-right: 10px;
+  border-right: solid 1px #d4d4d4;
+}
+
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+input {
+  font: 14px/1 'Open Sans', sans-serif;
+  color: #333;
+  width: 15px;
+  background-color: #efefef;
+  border: none;
+  padding: 3px;
+  border-radius: 3px;
+}
+
+/* Solved Equations */
+.solvedEquations {
+  grid-area: solvedEquations;
+}
+
+/* Footer */
+.footer {
+  grid-area: footer;
+}
